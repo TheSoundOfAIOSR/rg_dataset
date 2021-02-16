@@ -60,7 +60,7 @@ def scrapping_submissions(subreddit="all", search_tag="guitar timbre", file_path
 if __name__ == "__main__":
 
     # authenticate to the reddit instance created
-    instance = authenticate(CLIENT_ID, CLIENT_SECRET, USER_AGENT)
+    #instance = authenticate(CLIENT_ID, CLIENT_SECRET, USER_AGENT)
 
-    # test search option
+    # scrapping comments from Reddit
     scrapping_submissions("all", "guitar timbre", SAVED_RESULTS)

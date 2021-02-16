@@ -1,11 +1,14 @@
 import praw
 import json
 
+SAVED_RESULTS = 'reddit.json'
 
+# you can use your own credentials if you want
 CLIENT_ID = 'EZ57p7KGDL0_ZQ'
 CLIENT_SECRET = 'FXYfQdTXOpiHEnF94s1Kcg2oeHeqWA'
 USER_AGENT = 'Reddit WebScrapping'
-SAVED_RESULTS = 'reddit.json'
+
+
 
 def authenticate(id, secret, name):
     ''' authentication function to the Reddit instance

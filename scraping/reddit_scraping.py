@@ -62,5 +62,5 @@ if __name__ == "__main__":
     # authenticate to the reddit instance created
     #instance = authenticate(CLIENT_ID, CLIENT_SECRET, USER_AGENT)
 
-    # scrapping comments from Reddit
+    # scraping comments from Reddit
     scrapping_submissions("all", "guitar timbre", SAVED_RESULTS)

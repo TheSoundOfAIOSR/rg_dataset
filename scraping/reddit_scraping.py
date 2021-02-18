@@ -1,7 +1,7 @@
 import praw
 import json
 
-SAVED_RESULTS = 'reddit.json'
+SAVED_RESULTS = ['reddit.jsonl', 'reddit.json']
 
 # you can use your own credentials if you want
 CLIENT_ID = 'EZ57p7KGDL0_ZQ'
@@ -24,13 +24,14 @@ def authenticate(id, secret, name):
     reddit = praw.Reddit(client_id=id, client_secret=secret, user_agent=name)
     return reddit
 
-def scrapping_submissions(subreddit="all", search_tag="guitar timbre", file_path=SAVED_RESULTS):
+def scraping_submissions(subreddit="all", search_tag="guitar timbre", file_path=SAVED_RESULTS, json_lines = True):
     ''' function that search the tag in all the subreddits, then loops through all the submissions and store them and
         their comments in a dictionary.
 
     :param subreddit: use 'all' if you want to search in all the subreddits, otherwise use its specific name. E.g. RoastMe
     :param search_tag: the tag you want to look for in the subreddits / submissions
-    :param file_path: the path and name of the JSON file that will contain our scrapped comments
+    :param file_path: list containing all possible paths to store data in
+    :param json_lines: True if you want the output in a JSON Lines format, False if you want the normal JSON format
     :return: a dictionary containing (submission : comments) pairs
     '''
 
@@ -53,9 +54,12 @@ def scrapping_submissions(subreddit="all", search_tag="guitar timbre", file_path
         sub_comments[submission.title] = comments
 
     # dumb into a json file
-
-    with open(file_path, 'w') as fp:
-        json.dump(sub_comments, fp, indent=4)
+    if json_lines == True:
+        with open(file_path[0], 'w') as fp:
+            json.dump(sub_comments, fp, indent=4)
+    else:
+        with open(file_path[1], 'w') as fp:
+            json.dump(sub_comments, fp, indent=4)
 
 if __name__ == "__main__":
 
@@ -63,4 +67,4 @@ if __name__ == "__main__":
     #instance = authenticate(CLIENT_ID, CLIENT_SECRET, USER_AGENT)
 
     # scraping comments from Reddit
-    scrapping_submissions("all", "guitar timbre", SAVED_RESULTS)
+    scraping_submissions("all", "guitar timbre", SAVED_RESULTS, True)

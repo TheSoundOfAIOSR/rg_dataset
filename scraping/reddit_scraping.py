@@ -24,11 +24,11 @@ def authenticate(id, secret, name):
     reddit = praw.Reddit(client_id=id, client_secret=secret, user_agent=name)
     return reddit
 
-def scraping_submissions(subreddit="all", search_tag="guitar timbre", file_path=SAVED_RESULTS, json_lines = True):
+def scraping_submissions(sub="all", search_tag="guitar timbre", file_path=SAVED_RESULTS, json_lines = True):
     ''' function that search the tag in all the subreddits, then loops through all the submissions and store them and
         their comments in a dictionary.
 
-    :param subreddit: use 'all' if you want to search in all the subreddits, otherwise use its specific name. E.g. RoastMe
+    :param sub: use 'all' if you want to search in all the subreddits, otherwise use its specific name. E.g. RoastMe
     :param search_tag: the tag you want to look for in the subreddits / submissions
     :param file_path: list containing all possible paths to store data in
     :param json_lines: True if you want the output in a JSON Lines format, False if you want the normal JSON format
@@ -41,7 +41,7 @@ def scraping_submissions(subreddit="all", search_tag="guitar timbre", file_path=
     # loop through all the submissions and extract their comments
 
     # search the tag guitar timbre through all subreddits
-    for submission in instance.subreddit("all").search("guitar timbre"):
+    for submission in instance.subreddit(sub).search(search_tag):
 
         submission.comments.replace_more(limit=0)
         comments = []

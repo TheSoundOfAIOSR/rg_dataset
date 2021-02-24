@@ -74,7 +74,7 @@ def fetch_threads(n_pages=NUM_PAGES, url_root = URL_ROOT, other_page = OTHER_PAG
                 threads.append(link.get('href'))
                 counter += 1
 
-    print("Done fetching.")
+    print("Done fetching.\n")
 
     # remove redundant URLs that get scraped
     unique_threads = set(threads)
@@ -83,18 +83,22 @@ def fetch_threads(n_pages=NUM_PAGES, url_root = URL_ROOT, other_page = OTHER_PAG
 
 
 def max_pages(url=BASE_URL):
-    ''' find the max number of pages to loop through
+    ''' find the maximum number of pages to loop through
 
     :param url: URL of specific thread
     :return: max page
     '''
+
     URL = url
     page = fetch_page(URL)
     soup = BeautifulSoup(page.content, 'html.parser')
+
     n_page = 0
 
+    # search for specific tag that contains the navbar to move from one page to another
     num_pages = soup.find('span', {'class': 'pageNavHeader'})
 
+    # Condition to avoid the AttributeError exception if a thread has only one page
     if not num_pages :
         n_page = 1
     else :
@@ -104,20 +108,28 @@ def max_pages(url=BASE_URL):
 
 
 def data_scraping(base_url = BASE_URL):
+    ''' scrape data from TDPRI website.
+
+    :param base_url: base root URL https://www.tdpri.com/ to which we will add each thread relative path
+    :return: dictionary containing the thread title and all its comments
+    '''
 
     thread_comments = {}
 
+    # fetch all thread's urls
     threads = fetch_threads()
-    #print(len(threads))
 
+    # loop through all thread links
     for relative_link in tqdm(threads):
 
         thread_url = base_url + relative_link
 
+        # for each thread, find the max number of comment pages it has
         n_pages = max_pages(thread_url)
 
         comments = []
 
+        # threads with only one page have a different URL
         if n_pages == 1 :
             page = fetch_page(thread_url)
             soup = BeautifulSoup(page.content, 'html.parser')
@@ -134,19 +146,11 @@ def data_scraping(base_url = BASE_URL):
             title = soup_tmp.find('h1')
             store_page = ''
             for i in range(1, n_pages + 1) :
-                # if i == 1 :
-                #     print("fetching...")
-                #     print(i)
-                #     page = fetch_page(thread_url)
-                #     soup = BeautifulSoup(page.content, 'html.parser')
-                #
-                #     title = soup.find('h1')
-                #
-                #     for comment in soup.find_all('blockquote', class_ = re.compile('messageText SelectQuoteContainer ugc baseHtml')):
-                #         comments.append(comment.text)
-                #     thread_comments[title.text] = comments
-                #     print("done")
-                # else :
+
+                # first page of comments have a different URL than other pages
+                # E.g. https://www.tdpri.com/threads/is-tone-really-that-important.708613/
+                # while 2nd to last pages have the suffix "page-x" as shown here
+                # https://www.tdpri.com/threads/is-tone-really-that-important.708613/page-2
                 if i == 1:
                     page_url = soup_tmp.find('a', href=True, text=str(i)).get('href')
                     store_page = page_url
@@ -166,27 +170,19 @@ def data_scraping(base_url = BASE_URL):
                     for comment in soup.find_all('blockquote',
                                                  class_=re.compile('messageText SelectQuoteContainer ugc baseHtml')):
                         comments.append(comment.text)
-
-                #page_url = soup_tmp.find('a', text=str(i)).get('href')
-                #comment_url = base_url + page_url
-                # page = fetch_page(comment_url)
-                # soup = BeautifulSoup(page.content, 'html.parser')
-                #
-                #
-                #
-                # for comment in soup.find_all('blockquote',
-                #                              class_=re.compile('messageText SelectQuoteContainer ugc baseHtml')):
-                #     comments.append(comment.text)
-                #print(i)
-
+            # store (thread title, thread comments) in a dictionary
             thread_comments[title.text] = comments
-
-        #print("taille dict",len(thread_comments))
 
     return thread_comments
 
 
 def save_json(threads, filename = TDPRI):
+    ''' dump dictionaries in JSON files
+
+    :param threads: dictionary
+    :param filename: name of the file to store the dictionary into
+    :return:
+    '''
     with open(filename, 'w') as fp:
         print("Saving scraped data to JSON file...")
         json.dump(threads, fp, indent=4)
@@ -196,43 +192,5 @@ if __name__ == "__main__" :
 
     threads = data_scraping()
     save_json(threads)
-
-    # try :
-    # threads = data_scraping()
-    # except AttributeError:
-    # print("We found a bug in the matrix... Saving backup file")
-    # save_json(threads)
-    # print("File saved !")
-
-    # max_page = max_pages('https://www.tdpri.com/posts/7468407/')
-    #
-    # thread_url = 'https://www.tdpri.com/posts/7468407/'
-    # page_tmp = fetch_page(thread_url)
-    # soup_tmp = BeautifulSoup(page_tmp.content, 'html.parser')
-    # store_page = ''
-    # for i in range(1, max_page + 1) :
-    #     if i == 1:
-    #         page_url = soup_tmp.find('a', href=True, text=str(i)).get('href')
-    #         store_page = page_url
-    #         comment_url = 'https://www.tdpri.com/' + page_url
-    #     else :
-    #         comment_url = 'https://www.tdpri.com/' + store_page + 'page-'+str(i)
-    #     #page = fetch_page(comment_url)
-    #     print(comment_url)
-
-
-    # print('ok')
-    # #threads = fetch_threads()
-    # max_page = max_pages('https://www.tdpri.com/posts/9879772/')
-    # print(type(max_page), max_page)
-    # #print(type(max_page.string))
-    # #print(max_page.string[-1])
-    # comments = []
-    # page = fetch_page('https://www.tdpri.com/posts/10244548/')
-    # soup = BeautifulSoup(page.content, 'html.parser')
-    # thread_url = soup.find('a', text=str(3)).get('href')
-    #
-    # print(thread_url)
-
 
 

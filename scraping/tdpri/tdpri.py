@@ -1,9 +1,12 @@
 import requests
 from bs4 import BeautifulSoup
 import re
+import json
+from tqdm import tqdm
 
 PAGE = str(2)
 OTHER_PAGE = '?page='
+TDPRI = 'tdpri.json'
 
 BASE_URL = 'https://www.tdpri.com/'
 #QUERY_PARAM = '97606591/{}{}?q=timbre&o=relevance'
@@ -88,19 +91,148 @@ def max_pages(url=BASE_URL):
     URL = url
     page = fetch_page(URL)
     soup = BeautifulSoup(page.content, 'html.parser')
+    n_page = 0
 
-    num_pages =  soup.find('span', {'class': 'pageNavHeader'})
+    num_pages = soup.find('span', {'class': 'pageNavHeader'})
 
-    return num_pages
+    if not num_pages :
+        n_page = 1
+    else :
+        n_page = int(num_pages.string[-2:])
+
+    return n_page
 
 
+def data_scraping(base_url = BASE_URL):
+
+    thread_comments = {}
+
+    threads = fetch_threads()
+    #print(len(threads))
+
+    for relative_link in tqdm(threads):
+
+        thread_url = base_url + relative_link
+
+        n_pages = max_pages(thread_url)
+
+        comments = []
+
+        if n_pages == 1 :
+            page = fetch_page(thread_url)
+            soup = BeautifulSoup(page.content, 'html.parser')
+
+            title = soup.find('h1')
+
+            for comment in soup.find_all('blockquote', class_ = re.compile('messageText SelectQuoteContainer ugc baseHtml')):
+                comments.append(comment.text)
+            thread_comments[title.text] = comments
+
+        else :
+            page_tmp = fetch_page(thread_url)
+            soup_tmp = BeautifulSoup(page_tmp.content, 'html.parser')
+            title = soup_tmp.find('h1')
+            store_page = ''
+            for i in range(1, n_pages + 1) :
+                # if i == 1 :
+                #     print("fetching...")
+                #     print(i)
+                #     page = fetch_page(thread_url)
+                #     soup = BeautifulSoup(page.content, 'html.parser')
+                #
+                #     title = soup.find('h1')
+                #
+                #     for comment in soup.find_all('blockquote', class_ = re.compile('messageText SelectQuoteContainer ugc baseHtml')):
+                #         comments.append(comment.text)
+                #     thread_comments[title.text] = comments
+                #     print("done")
+                # else :
+                if i == 1:
+                    page_url = soup_tmp.find('a', href=True, text=str(i)).get('href')
+                    store_page = page_url
+                    comment_url = 'https://www.tdpri.com/' + page_url
+                    page = fetch_page(comment_url)
+                    soup = BeautifulSoup(page.content, 'html.parser')
+
+                    for comment in soup.find_all('blockquote',
+                                                 class_=re.compile('messageText SelectQuoteContainer ugc baseHtml')):
+                        comments.append(comment.text)
+
+                else :
+                    comment_url = 'https://www.tdpri.com/' + store_page + 'page-'+str(i)
+                    page = fetch_page(comment_url)
+                    soup = BeautifulSoup(page.content, 'html.parser')
+
+                    for comment in soup.find_all('blockquote',
+                                                 class_=re.compile('messageText SelectQuoteContainer ugc baseHtml')):
+                        comments.append(comment.text)
+
+                #page_url = soup_tmp.find('a', text=str(i)).get('href')
+                #comment_url = base_url + page_url
+                # page = fetch_page(comment_url)
+                # soup = BeautifulSoup(page.content, 'html.parser')
+                #
+                #
+                #
+                # for comment in soup.find_all('blockquote',
+                #                              class_=re.compile('messageText SelectQuoteContainer ugc baseHtml')):
+                #     comments.append(comment.text)
+                #print(i)
+
+            thread_comments[title.text] = comments
+
+        #print("taille dict",len(thread_comments))
+
+    return thread_comments
 
 
+def save_json(threads, filename = TDPRI):
+    with open(filename, 'w') as fp:
+        print("Saving scraped data to JSON file...")
+        json.dump(threads, fp, indent=4)
+        print("Done !")
 
 if __name__ == "__main__" :
-    print('ok')
-    #threads = fetch_threads()
-    max_page = max_pages('https://www.tdpri.com/posts/10377555/')
-    print(type(max_page))
-    #print(type(max_page.string))
-    #print(max_page.string[-1])
+
+    threads = data_scraping()
+    save_json(threads)
+
+    # try :
+    # threads = data_scraping()
+    # except AttributeError:
+    # print("We found a bug in the matrix... Saving backup file")
+    # save_json(threads)
+    # print("File saved !")
+
+    # max_page = max_pages('https://www.tdpri.com/posts/7468407/')
+    #
+    # thread_url = 'https://www.tdpri.com/posts/7468407/'
+    # page_tmp = fetch_page(thread_url)
+    # soup_tmp = BeautifulSoup(page_tmp.content, 'html.parser')
+    # store_page = ''
+    # for i in range(1, max_page + 1) :
+    #     if i == 1:
+    #         page_url = soup_tmp.find('a', href=True, text=str(i)).get('href')
+    #         store_page = page_url
+    #         comment_url = 'https://www.tdpri.com/' + page_url
+    #     else :
+    #         comment_url = 'https://www.tdpri.com/' + store_page + 'page-'+str(i)
+    #     #page = fetch_page(comment_url)
+    #     print(comment_url)
+
+
+    # print('ok')
+    # #threads = fetch_threads()
+    # max_page = max_pages('https://www.tdpri.com/posts/9879772/')
+    # print(type(max_page), max_page)
+    # #print(type(max_page.string))
+    # #print(max_page.string[-1])
+    # comments = []
+    # page = fetch_page('https://www.tdpri.com/posts/10244548/')
+    # soup = BeautifulSoup(page.content, 'html.parser')
+    # thread_url = soup.find('a', text=str(3)).get('href')
+    #
+    # print(thread_url)
+
+
+

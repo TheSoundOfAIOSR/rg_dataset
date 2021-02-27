@@ -11,7 +11,6 @@ TDPRI = 'tdpri.json'
 BASE_URL = 'https://www.tdpri.com/'
 #QUERY_PARAM = '97606591/{}{}?q=timbre&o=relevance'
 URL_ROOT = 'https://www.tdpri.com/search/97606591/{}{}?q=timbre&o=relevance'
-NUM_PAGES = 20
 
 # create BeautifulSoup object
 
@@ -31,7 +30,34 @@ def fetch_page(url = URL_ROOT):
 
     return page
 
-def fetch_threads(n_pages=NUM_PAGES, url_root = URL_ROOT, other_page = OTHER_PAGE ):
+
+def max_pages(url=BASE_URL):
+    ''' find the maximum number of pages to loop through
+
+    :param url: URL of specific thread
+    :return: max page
+    '''
+
+    URL = url
+    page = fetch_page(URL)
+    soup = BeautifulSoup(page.content, 'html.parser')
+
+    n_page = 0
+
+    # search for specific tag that contains the navbar to move from one page to another
+    num_pages = soup.find('span', {'class': 'pageNavHeader'})
+
+    # Condition to avoid the AttributeError exception if a thread has only one page
+    if not num_pages :
+        n_page = 1
+    else :
+        n_page = int(num_pages.string[-2:])
+
+    return n_page
+
+
+
+def fetch_threads(url_root = URL_ROOT, other_page = OTHER_PAGE ):
     ''' store all the URLs related to a thread found in a page
 
     :param n_pages: number of pages to loop through (E.g. each page in TDRPI contains 25 threads)
@@ -42,9 +68,11 @@ def fetch_threads(n_pages=NUM_PAGES, url_root = URL_ROOT, other_page = OTHER_PAG
     :return: set of links of each thread in the search result
     '''
 
+
     threads = []
     counter = 0
     empty_str = ''
+    n_pages = max_pages(url_root.format(empty_str, empty_str))
     
     for i in range(1, n_pages+1) :
         # each result page contains 25 threads
@@ -79,32 +107,7 @@ def fetch_threads(n_pages=NUM_PAGES, url_root = URL_ROOT, other_page = OTHER_PAG
     # remove redundant URLs that get scraped
     unique_threads = set(threads)
 
-    return  unique_threads
-
-
-def max_pages(url=BASE_URL):
-    ''' find the maximum number of pages to loop through
-
-    :param url: URL of specific thread
-    :return: max page
-    '''
-
-    URL = url
-    page = fetch_page(URL)
-    soup = BeautifulSoup(page.content, 'html.parser')
-
-    n_page = 0
-
-    # search for specific tag that contains the navbar to move from one page to another
-    num_pages = soup.find('span', {'class': 'pageNavHeader'})
-
-    # Condition to avoid the AttributeError exception if a thread has only one page
-    if not num_pages :
-        n_page = 1
-    else :
-        n_page = int(num_pages.string[-2:])
-
-    return n_page
+    return unique_threads
 
 
 def data_scraping(base_url = BASE_URL):
@@ -192,5 +195,6 @@ if __name__ == "__main__" :
 
     threads = data_scraping()
     save_json(threads)
+
 
 

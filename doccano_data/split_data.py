@@ -20,13 +20,18 @@ def dump_jsonl(data, output_path, append=False, verbose=False):
     if verbose:
         print(f'Wrote {len(data)} lines to {output_path}')
 
-def split_data(data):
+def split_data(data, verbose=False):
+    num_lines = [0, 0]
     for line in data:
         if line["annotations"]:
-            dump_jsonl([line], './annotated.jsonl', append=True)
+            num_lines[1] += 1
+            dump_jsonl([line], './Mar_1_annotated.jsonl', append=True)
         else:
-            dump_jsonl([line], './unannotated.jsonl', append=True)
+            num_lines[0] += 1
+            dump_jsonl([line], './Mar_1_unannotated.jsonl', append=True)
+    if verbose:
+        print(f'Split data, {num_lines[1]} annotated, {num_lines[0]} not annotated.')
 
-full_data = load_jsonl('./project_1_dataset.jsonl')
-split_data(full_data)
+full_data = load_jsonl('./Mar_1_Dataset.jsonl')
+split_data(full_data, verbose=True)
 print('Complete.')

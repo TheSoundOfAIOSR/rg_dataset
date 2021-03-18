@@ -1,7 +1,9 @@
 import pandas as pd
 import re
+import numpy as np
 
 DATA_PATH = './doccano_data/project_1_dataset.jsonl'
+OUTPUT_PATH = './active_learning/processed_data.csv'
 
 def fetch_data(data_path=DATA_PATH):
     ''' fetch the data project_1_dataset.jsonl from the doccano_data repository
@@ -52,13 +54,13 @@ def process_data(data):
     data['tagged_words'] = ''
     data['split_sentences'] = ''
 
-    # extract tuples (word, label) from the annotation column
+    # extract annotated words as tuples (word, label) from the text column using the annotation column
     # and add them to the tagged words column
     for idx, row in data.iterrows():
         tuple_list = []
-        for dict in row['annotations']:
-            tuple_list.append((row['text'][dict['start_offset'] : dict['end_offset']], dict['label']))
-        row['tagged_words'] = tuple_list
+        for dic in row['annotations']:
+            tuple_list.append((row['text'][dic['start_offset'] : dic['end_offset']], dic['label']))
+        row['tagged_words'] = dict(tuple_list)
 
 
     # clean text data
@@ -66,7 +68,21 @@ def process_data(data):
 
     # split text into a list of tuples (word, label) where the word is the word in each text
     # and the label is either zero (if it's not annotated) or 1-2 if it's annotated
+    for idx, row in data.iterrows():
+        word_tuples = []
+        for word in row['text'].split():
+            if word not in row['tagged_words'].keys() :
+                word_tuples.append((word,0))
+            else:
+                word_tuples.append((word, row['tagged_words'][word]))
+        row['split_sentences'] = word_tuples
 
+    # drop annotations and tagged_words column
+    columns_to_drop = ['annotations', 'tagged_words']
+    data = data.drop(columns_to_drop, axis=1)
+
+    # save the cleaned data into a csv
+    data.to_csv(path_or_buf=OUTPUT_PATH, index=False)
 
     return data
 

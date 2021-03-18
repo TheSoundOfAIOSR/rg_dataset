@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 import numpy as np
+from collections import Counter
 
 DATA_PATH = './doccano_data/project_1_dataset.jsonl'
 OUTPUT_PATH = './active_learning/processed_data.csv'
@@ -47,6 +48,30 @@ def remove_special_chars(x):
     x = re.sub(r'\w+:\/{2}[\d\w-]+(\.[\d\w-]+)*(?:(?:\/[^\s/]*))*', ' ', x)
     x = re.sub('[^-A-Za-z0-9]', ' ', x)
     return ' '.join(x.split())
+
+
+def get_unique_words(data_column):
+    ''' get pairs of words and their occurences and a list of unique words
+
+    :param data_column: the column containing the text to split
+    :return: tuple (word, count) and list of unique words
+    '''
+
+    ctr = Counter()
+    words = []
+
+    for line in data_column:
+        words.append(line.lower().split())
+
+    # flatten the list of lists into a list
+    words = [item for sublist in words for item in sublist]
+
+    for word in words:
+        ctr[word] += 1
+
+    unique_words = set(words)
+
+    return ctr, unique_words
 
 
 def process_data(data):
@@ -101,4 +126,4 @@ if __name__ == '__main__':
     data = fetch_data(data_path=DATA_PATH)
     seed, other = split_data(data)
     seed = process_data(seed)
-
+    word_count, unique_words = get_unique_words(seed['text'])

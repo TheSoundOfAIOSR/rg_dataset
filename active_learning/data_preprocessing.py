@@ -37,6 +37,11 @@ def split_data(data):
     return seed, unlabelled_dataset
 
 def remove_special_chars(x):
+    ''' remove URLs and special chars
+
+    :param x: text column of the seed dataset
+    :return: clean text column
+    '''
     x = re.sub(r'\\n', ' ', x)
     x = re.sub(r'\\u', ' ', x)
     x = re.sub(r'\w+:\/{2}[\d\w-]+(\.[\d\w-]+)*(?:(?:\/[^\s/]*))*', ' ', x)
@@ -45,10 +50,13 @@ def remove_special_chars(x):
 
 
 def process_data(data):
-    '''
+    ''' split text rows into tuples (word, label) where label can be either :
+       {0 : non annotated word, 1 : instrument, 2 : quality/timbre}
+        E.g. [('Example', 0), ('I', 0), ('would', 0), ('like', 0), ('to', 0),
+              ('find', 0), ('a', 0), ('dark', 2), ('sounding', 0), ('piano', 1)]
 
-    :param data:
-    :return:
+    :param data: the seed dataset
+    :return: processed data
     '''
 
     data['tagged_words'] = ''

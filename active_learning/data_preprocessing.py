@@ -105,9 +105,9 @@ def process_data(data):
         word_tuples = []
         for word in row['text'].split():
             if word not in row['tagged_words'].keys() :
-                word_tuples.append((word,0))
+                word_tuples.append((word.lower(),0))
             else:
-                word_tuples.append((word, row['tagged_words'][word]))
+                word_tuples.append((word.lower(), row['tagged_words'][word]))
         row['split_sentences'] = word_tuples
 
     # drop annotations and tagged_words column
@@ -127,3 +127,16 @@ if __name__ == '__main__':
     seed, other = split_data(data)
     seed = process_data(seed)
     word_count, unique_words = get_unique_words(seed['text'])
+
+    split_sentences = seed['split_sentences'].values.tolist()
+    tags = ['NONE', 'INSTR', 'QLTY']
+
+    word2idx = {w: i + 2 for i, w in enumerate(unique_words)}
+    word2idx["UNK"] = 1
+    word2idx["PAD"] = 0
+    idx2word = {i: w for w, i in word2idx.items()}
+    tag2idx = {t: i + 1 for i, t in enumerate(tags)}
+    tag2idx["PAD"] = 0
+    idx2tag = {i: w for w, i in tag2idx.items()}
+    X_word = [[word2idx[w[0]] for w in s] for s in split_sentences]
+

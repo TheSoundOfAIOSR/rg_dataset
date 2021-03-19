@@ -1,3 +1,4 @@
+import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 from active_learning.data_preprocessing import DATA_PATH, OUTPUT_PATH, fetch_data, split_data, remove_special_chars,\
                                                get_unique_words,process_data
@@ -32,7 +33,7 @@ def tokenize_element():
 
     # transforming the split_sentences into a list of lists
     split_sentences = seed['split_sentences'].values.tolist()
-    print(split_sentences)
+    # print(split_sentences)
 
     # get lengths of longest sentence and longest words
     max_len = max_length(seed['split_sentences'])
@@ -47,18 +48,37 @@ def tokenize_element():
     tag2idx["PAD"] = 0
     idx2tag = {i: w for w, i in tag2idx.items()}
 
-    print(word2idx["guitar"])
-    print(tag2idx["INSTR"])
+    # print(word2idx["guitar"])
+    # print(tag2idx["INSTR"])
 
     # map the sentences to a sequence of numbers and pad the sequence
     X_word = [[word2idx[w[0]] for w in s] for s in split_sentences]
-    X_word = pad_sequences(max_len=max_len, sequences=X_word, value=word2idx["PAD"], padding='post', truncating='post')
+    X_word = pad_sequences(maxlen=max_len, sequences=X_word, value=word2idx["PAD"], padding='post', truncating='post')
 
     # generate dictionary for the characters and create the sequence of characters for every token
     chars = set([w_i for w in unique_words for w_i in w])
     n_chars = len(chars)
     print(n_chars)
 
+    char2idx = {c: i + 2 for i, c in enumerate(chars)}
+    char2idx["UNK"] = 1
+    char2idx["PAD"] = 0
+
+    X_char = []
+    for sentence in split_sentences:
+        sent_seq = []
+        for i in range(max_len):
+            word_seq = []
+            for j in range(max_len_char):
+                try:
+                    word_seq.append(char2idx.get(split_sentences[i][0][j]))
+                except:
+                    word_seq.append(char2idx.get("PAD"))
+            sent_seq.append(word_seq)
+        X_char.append(np.array(sent_seq))
+
+    y = [[tag2idx[w[1]] for w in s] for s in split_sentences]
+    y = pad_sequences(maxlen=max_len, sequences=y, value=tag2idx["PAD"], padding='post', truncating='post')
 
 
 

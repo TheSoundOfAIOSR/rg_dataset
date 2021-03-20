@@ -16,6 +16,14 @@ def fetch_data(data_path=DATA_PATH):
     data = pd.read_json(path_or_buf=data_path, lines=True)
     return data
 
+def transform_labels(data):
+    for idx, row in data.iterrows():
+        for dic in row['annotations']:
+            if dic['label'] == 1:
+                dic['label'] = 'INSTR'
+            elif dic['label'] == 2:
+                dic['label'] = 'QLTY'
+    return data
 
 def split_data(data):
     '''
@@ -100,12 +108,12 @@ def process_data(data):
     data['text'] = data['text'].apply(remove_special_chars)
 
     # split text into a list of tuples (word, label) where the word is the word in each text
-    # and the label is either zero (if it's not annotated) or 1-2 if it's annotated
+    # and the label is either 3 (if it's not annotated) or 1-2 if it's annotated
     for idx, row in data.iterrows():
         word_tuples = []
         for word in row['text'].split():
             if word not in row['tagged_words'].keys() :
-                word_tuples.append((word.lower(),0))
+                word_tuples.append((word.lower(),'NONE'))
             else:
                 word_tuples.append((word.lower(), row['tagged_words'][word]))
         row['split_sentences'] = word_tuples
@@ -125,6 +133,7 @@ def process_data(data):
 if __name__ == '__main__':
     data = fetch_data(data_path=DATA_PATH)
     seed, other = split_data(data)
+    seed = transform_labels(seed)
     seed = process_data(seed)
     word_count, unique_words = get_unique_words(seed['text'])
 

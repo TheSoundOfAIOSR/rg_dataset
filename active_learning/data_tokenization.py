@@ -1,7 +1,7 @@
 import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 from active_learning.data_preprocessing import DATA_PATH, OUTPUT_PATH, fetch_data, split_data, remove_special_chars,\
-                                               get_unique_words,process_data
+                                               get_unique_words,process_data, transform_labels
 
 
 def max_length(list):
@@ -19,17 +19,20 @@ def max_length(list):
 
     return length
 
+
 def tokenize_element():
 
-    # we have 3 tags {0: non-annotated, 1: INSTRUMENT, 2: QUALITY/TIMBRE
-    tags = ['NONE', 'INSTR', 'QLTY']
+    # we have 3 tags {1: INSTRUMENT, 2: QUALITY/TIMBRE, 3: non-annotated}
+    tags = ['INSTR', 'QLTY', 'NONE']
 
     # load and preprocess the data
     data = fetch_data(data_path=DATA_PATH)
     seed, other = split_data(data)
+    seed = transform_labels(seed)
     seed = process_data(seed)
     word_count, unique_words = get_unique_words(seed['text'])
     unique_words = list(unique_words)
+    n_words = len(unique_words)
 
     # transforming the split_sentences into a list of lists
     split_sentences = seed['split_sentences'].values.tolist()
@@ -80,7 +83,9 @@ def tokenize_element():
     y = [[tag2idx[w[1]] for w in s] for s in split_sentences]
     y = pad_sequences(maxlen=max_len, sequences=y, value=tag2idx["PAD"], padding='post', truncating='post')
 
+    return X_word, X_char, y, max_len, max_len_char, n_words, n_chars, idx2word, idx2tag
+
 
 
 if __name__ == '__main__':
-    tokenize_element()
+    X_word, X_char, y, max_len, max_len_char, n_words, n_chars, idx2word, idx2tag = tokenize_element()

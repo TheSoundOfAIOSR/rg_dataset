@@ -4,7 +4,7 @@ import numpy as np
 from collections import Counter
 
 DATA_PATH = './doccano_data/project_1_dataset.jsonl'
-OUTPUT_PATH = './active_learning/processed_data.csv'
+OUTPUT_PATH = './reddit_data_preprocessing/processed_data.csv'
 
 def fetch_data(data_path=DATA_PATH):
     ''' fetch the data project_1_dataset.jsonl from the doccano_data repository
@@ -140,12 +140,4 @@ if __name__ == '__main__':
     split_sentences = seed['split_sentences'].values.tolist()
     tags = ['NONE', 'INSTR', 'QLTY']
 
-    word2idx = {w: i + 2 for i, w in enumerate(unique_words)}
-    word2idx["UNK"] = 1
-    word2idx["PAD"] = 0
-    idx2word = {i: w for w, i in word2idx.items()}
-    tag2idx = {t: i + 1 for i, t in enumerate(tags)}
-    tag2idx["PAD"] = 0
-    idx2tag = {i: w for w, i in tag2idx.items()}
-    X_word = [[word2idx[w[0]] for w in s] for s in split_sentences]
 

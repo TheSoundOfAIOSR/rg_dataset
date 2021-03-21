@@ -1,7 +1,6 @@
 import numpy as np
 from keras.preprocessing.sequence import pad_sequences
-from active_learning.data_preprocessing import DATA_PATH, OUTPUT_PATH, fetch_data, split_data, remove_special_chars,\
-                                               get_unique_words,process_data, transform_labels
+from reddit_data_preprocessing.data_preprocessing import DATA_PATH, fetch_data, split_data, get_unique_words,process_data, transform_labels
 
 
 def max_length(list):

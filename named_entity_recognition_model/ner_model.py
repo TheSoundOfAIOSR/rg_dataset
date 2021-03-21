@@ -1,13 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import keras
-from active_learning.data_tokenization import max_length, tokenize_element
+from named_entity_recognition_model.data_tokenization import tokenize_element
 from sklearn.model_selection import train_test_split
 from keras.models import Model, Input
-from keras.layers import LSTM, Embedding, Dense, TimeDistributed, Dropout, Conv1D, Bidirectional, concatenate, \
-                         SpatialDropout1D, GlobalMaxPool1D
-
+from keras.layers import LSTM, Embedding, Dense, TimeDistributed, Bidirectional, concatenate, \
+                         SpatialDropout1D
 
 MODEL_PATH = "ner_model.h5"
 

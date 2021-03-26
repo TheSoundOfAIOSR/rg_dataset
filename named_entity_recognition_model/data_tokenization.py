@@ -29,13 +29,15 @@ def tokenize_element():
     seed, other = split_data(data)
     seed = transform_labels(seed)
     seed = process_data(seed)
-    word_count, unique_words = get_unique_words(seed['text'])
-    unique_words = list(unique_words)
-    n_words = len(unique_words)
 
     # transforming the split_sentences into a list of lists
     split_sentences = seed['split_sentences'].values.tolist()
     # print(split_sentences)
+
+    # getting unique words
+    word_count, unique_words = get_unique_words(split_sentences)
+    unique_words = list(unique_words)
+    n_words = len(unique_words)
 
     # get lengths of longest sentence and longest words
     max_len = max_length(seed['split_sentences'])

@@ -60,7 +60,7 @@ def remove_special_chars(x):
     return ' '.join(x.split())
 
 
-def get_unique_words(data_column):
+def get_unique_words(splitted_sentences):
     ''' get pairs of words and their occurences and a list of unique words
 
     :param data_column: the column containing the text to split
@@ -68,13 +68,8 @@ def get_unique_words(data_column):
     '''
 
     ctr = Counter()
-    words = []
 
-    for line in data_column:
-        words.append(line.lower().split())
-
-    # flatten the list of lists into a list
-    words = [item for sublist in words for item in sublist]
+    words = [item[0] for sublist in splitted_sentences for item in sublist]
 
     for word in words:
         ctr[word] += 1
@@ -165,7 +160,7 @@ if __name__ == '__main__':
     seed, other = split_data(data)
     seed = transform_labels(seed)
     seed = process_data(seed)
-    word_count, unique_words = get_unique_words(seed['text'])
 
     split_sentences = seed['split_sentences'].values.tolist()
+    word_count, unique_words = get_unique_words(split_sentences)
     tags = ['NONE', 'INSTR', 'QLTY']

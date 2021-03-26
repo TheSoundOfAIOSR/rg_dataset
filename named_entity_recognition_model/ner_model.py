@@ -78,7 +78,7 @@ def predict_results(model, X_word_te, X_char_te, y_te, max_len, max_len_char, id
                             np.array(X_char_te).reshape((len(X_char_te),
                                                          max_len, max_len_char))])
 
-    i = 15
+    i = 2
     p = np.argmax(y_pred[i], axis=-1)
     print("{:15}||{:5}||{}".format("Word", "True", "Pred"))
     print(30 * "=")

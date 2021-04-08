@@ -7,6 +7,8 @@ from collections import defaultdict
 from pathlib import Path
 from spacy.util import minibatch, compounding
 from reddit_data_preprocessing.data_preprocessing import DATA_PATH, fetch_data, transform_labels
+from spacy.tokenizer import Tokenizer
+from spacy.lang.en import English
 
 
 from sklearn.base import BaseEstimator
@@ -153,7 +155,7 @@ class NerModel(BaseEstimator):
         nlp = spacy.load(self.OUTPUT_DIR)
 
 
-        docs = list(nlp.pipe(X))
+        docs = list(nlp.pipe(X, disable=['ner']))
         # docs = nlp(X, disable=['ner'])
         beams = nlp.entity.beam_parse(docs, beam_width=beam_width, beam_density=beam_density)
 
@@ -180,12 +182,36 @@ class NerModel(BaseEstimator):
 
         l = sorted(l, key=lambda x: x['start'])
 
-        for a in sorted(l, key= lambda x: (x['start'],x['end'], x['label'])):
-            print(a)
+        # create an ndarray containing the probabilities of tags for each word in the sentence
+        text_splitted = X[0].split()
+        proba = []
+        for idx in range(len(text_splitted)+1):
+            tmp_list = []
+            sub_dicts = [subdict for subdict in l if subdict['start']==idx]
+            if any(dico['start']==idx for dico in l):
+                if any(dico['label']=='INSTR' for dico in sub_dicts):
+                    my_item = next((item for item in sub_dicts if item['label'] == 'INSTR'), None)
+                    tmp_list.append(my_item['prob'])
+                else:
+                    tmp_list.append(0)
 
-        predicted_probas = np.array(predicted_probas)
+                if any(dico['label']=='QLTY' for dico in sub_dicts):
+                    my_item = next((item for item in sub_dicts if item['label'] == 'QLTY'), None)
+                    tmp_list.append(my_item['prob'])
+                else:
+                    tmp_list.append(0)
 
-        return predicted_probas
+            if any(tag in [dictio['label'] for dictio in sub_dicts] for tag in ['INSTR', 'QLTY'])==False :
+                tmp_list.extend([0,0])
+            proba.append(tmp_list)
+        proba = np.array(proba, dtype=object)
+        #
+        # for a in sorted(l, key= lambda x: (x['start'],x['end'], x['label'])):
+        #     print(a)
+
+        # predicted_probas = np.array(predicted_probas)
+
+        return proba
 
 
 if __name__ == "__main__":
@@ -211,5 +237,10 @@ if __name__ == "__main__":
     text2 = ["I'd like a sharp cello"]
     # result = ner_model.predict(text2)
 
-    predicted_proba = ner_model.predict_proba(text1)
+    predicted_proba = ner_model.predict_proba(text2)
+
+
+    text_splitted = text1[0].split()
+    len(text_splitted)
+
 

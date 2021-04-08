@@ -41,7 +41,7 @@ N_QUERIES = 20
 # Allow our model to query our unlabeled dataset for the most
 # informative points according to our query strategy (uncertainty sampling)
 for idx in range(N_QUERIES):
-    query_idx, query_instance = learner.query(X_pool)
+    query_idx, query_instance = learner.query(X_pool, n_instances = 5)
 
     #Teach our ActiveLearner model the record it has requested
     X, y = X_pool[query_idx].reshape(1, -1), y_pool[query_idx].reshape(1, )

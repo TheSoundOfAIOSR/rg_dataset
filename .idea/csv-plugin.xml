@@ -17,6 +17,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\active_learning\test_active_learning.py">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\named_entity_recognition_model\data_tokenization.py">
           <value>
             <Attribute>

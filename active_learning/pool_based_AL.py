@@ -1,4 +1,7 @@
+import ast
+
 import numpy as np
+import time
 from modAL.models import ActiveLearner
 from named_entity_recognition_model.spacy_model_class import NerModel, split_data, transform_data
 from reddit_data_preprocessing.data_preprocessing import fetch_data, DATA_PATH, transform_labels
@@ -29,7 +32,7 @@ def load_split(data):
 
     return X_train, X_pool, y_train, y_pool
 
-
+start_time = time.time()
 X_train, X_pool, y_train, y_pool = load_split(data)
 # specify our core estimator along with it's active learning model
 ner_model = NerModel()
@@ -41,10 +44,21 @@ N_QUERIES = 20
 # Allow our model to query our unlabeled dataset for the most
 # informative points according to our query strategy (uncertainty sampling)
 for idx in range(N_QUERIES):
-    query_idx, query_instance = learner.query(X_pool, n_instances = 5)
+    query_idx, query_instance = learner.query(X_pool)
+    print("--- %s seconds ---" % (time.time() - start_time))
+
+    X= [X_pool[query_idx[0]]]
+
+    # ask the user to label the sentence
+    print("The sentence that needs to be labeled is :")
+    print(X)
+    print("Which words should be labeled ?")
+    labels = input("Format (start_offset, end_offset, 'label') : ")
+
+    y = np.array([{'entities':[ast.literal_eval(x) for x in labels.splitlines()]}])
+    X = np.array(X)
 
     #Teach our ActiveLearner model the record it has requested
-    X, y = X_pool[query_idx].reshape(1, -1), y_pool[query_idx].reshape(1, )
     learner.teach(X=X, y=y)
 
     # remove the queried instance from the unlabeled pool

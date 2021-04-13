@@ -4,7 +4,7 @@
   "beam_update_prob":1.0,
   "cnn_maxout_pieces":3,
   "nr_feature_tokens":6,
-  "nr_class":10,
+  "nr_class":18,
   "hidden_depth":1,
   "token_vector_width":96,
   "hidden_width":64,

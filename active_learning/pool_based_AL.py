@@ -73,83 +73,58 @@ def load_split(data):
 
     return X_train, X_pool, y_train, y_pool
 
-start_time = time.time()
-X_train, X_pool, y_train, y_pool = load_split(data)
-# specify our core estimator along with it's active learning model
-ner_model = NerModel()
-learner = ActiveLearner(estimator=ner_model, X_training=X_train, y_training=y_train)
 
-# Update our model by pool-based sampling our "unlabeled" dataset
-N_QUERIES = 20
+def query_sentences(n_queries=20, n_instances=10 ):
+    start_time = time.time()
+    X_train, X_pool, y_train, y_pool = load_split(data)
+    # specify our core estimator along with it's active learning model
+    ner_model = NerModel()
+    learner = ActiveLearner(estimator=ner_model, X_training=X_train, y_training=y_train)
 
-# Allow our model to query our unlabeled dataset for the most
-# informative points according to our query strategy (uncertainty sampling)
-for idx in range(N_QUERIES):
-    query_idx, query_instance = learner.query(X_pool, n_instances=10)
-    print("--- %s seconds ---" % (time.time() - start_time))
-    print(query_idx)
-    print(query_instance)
+    # Update our model by pool-based sampling our "unlabeled" dataset
+    N_QUERIES = n_queries
 
-    print("##########  ##########")
-    print("Query n°", idx)
-    confirmation = input("Continue ? (y/n) :")
+    # Allow our model to query our unlabeled dataset for the most
+    # informative points according to our query strategy (uncertainty sampling)
+    for idx in range(N_QUERIES):
+        query_idx, query_instance = learner.query(X_pool, n_instances=n_instances)
+        print("--- %s seconds ---" % (time.time() - start_time))
+        print(query_idx)
+        print(query_instance)
 
-    if confirmation.lower() == 'y':
-        # fetch and the new annotated data
-        new_data = fetch_data(data_path='./doccano_data/project_2_dataset.jsonl')
-        new_seed, _ = split_new_data(new_data)
-        new_seed = transform_new_data(new_seed)
+        print("##########  ##########")
+        print("Query n°", idx)
+        confirmation = input("Continue ? (y/n) :")
 
-        X = []
-        y=[]
-        for sentence in query_instance:
-            for seed in new_seed:
-                if seed[0]==sentence :
-                    X.append(sentence)
-                    y.append(seed[1])
+        if confirmation.lower() == 'y':
+            # fetch and the new annotated data
+            new_data = fetch_data(data_path='./doccano_data/project_2_dataset.jsonl')
+            new_seed, _ = split_new_data(new_data)
+            new_seed = transform_new_data(new_seed)
 
-        X = np.array(X)
-        y = np.array(y)
+            X = []
+            y=[]
+            for sentence in query_instance:
+                for seed in new_seed:
+                    if seed[0]==sentence :
+                        X.append(sentence)
+                        y.append(seed[1])
 
-        #Teach our ActiveLearner model the record it has requested
-        learner.teach(X=X, y=y)
+            X = np.array(X)
+            y = np.array(y)
 
-        # remove the queried instance from the unlabeled pool
-        sorted_query_idx = sorted(query_idx, reverse=True)
-        for index in sorted_query_idx:
-            del X_pool[index]
+            #Teach our ActiveLearner model the record it has requested
+            learner.teach(X=X, y=y)
 
-    else :
-        break
+            # remove the queried instance from the unlabeled pool
+            sorted_query_idx = sorted(query_idx, reverse=True)
+            for index in sorted_query_idx:
+                del X_pool[index]
 
-
-
-    # X= [X_pool[query_idx[0]]]
-    #
-    # # ask the user to label the sentence
-    # print("The sentence that needs to be labeled is :")
-    # print(X)
-    # print("Which words should be labeled ?")
-    # labels = input("Format (start_offset, end_offset, 'label') : ")
-    #
-    # y = np.array([{'entities':[ast.literal_eval(x) for x in labels.splitlines()]}])
-    # X = np.array(X)
-    #
-    # #Teach our ActiveLearner model the record it has requested
-    # learner.teach(X=X, y=y)
-    #
-    # # remove the queried instance from the unlabeled pool
-    # X_pool, y_pool = np.delete(X_pool, query_idx, axis=0), np.delete(y_pool, query_idx)
+        else :
+            break
 
 
+if __name__ == "__main__":
+    query_sentences(n_queries=20, n_instances=10)
 
-
-# Let's see how our classifier performs on the initial training set
-# predictions = learner.predict(X_train)
-# is_correct = (predictions == y_train['entities'])
-
-
-
-
-# if __name__ == "__main__":
-#     data = fetch_data(data_path=DATA_PATH)

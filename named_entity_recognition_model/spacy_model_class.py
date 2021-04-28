@@ -4,6 +4,7 @@ import pandas as pd
 import random
 import spacy
 from collections import defaultdict
+from itertools import groupby
 from pathlib import Path
 from spacy.util import minibatch, compounding
 from reddit_data_preprocessing.data_preprocessing import DATA_PATH, fetch_data, transform_labels
@@ -180,38 +181,30 @@ class NerModel(BaseEstimator):
                 predicted_probas.append(tmp)
                 tmp = []
 
-        l = sorted(l, key=lambda x: x['start'])
+        l = sorted(l, key=lambda x: (x['start'], x['end']))
 
-        # create an ndarray containing the probabilities of tags for each word in the sentence
-        text_splitted = X[0].split()
+        # create an ndarray containing the probabilities of tags given by the beam
         proba = []
-        for idx in range(len(text_splitted)+1):
+        for k, v in groupby(l, key=lambda x: (x['start'], x['end'])):
+            sub_dicts = list(v)
+            print (sub_dicts)
             tmp_list = []
-            sub_dicts = [subdict for subdict in l if subdict['start']==idx]
-            if any(dico['start']==idx for dico in l):
-                if any(dico['label']=='INSTR' for dico in sub_dicts):
-                    my_item = next((item for item in sub_dicts if item['label'] == 'INSTR'), None)
-                    tmp_list.append(my_item['prob'])
-                else:
-                    tmp_list.append(0)
+            if any(dico['label']=='INSTR' for dico in sub_dicts):
+                my_item = next((item for item in sub_dicts if item['label'] == 'INSTR'), None)
+                tmp_list.append(my_item['prob'])
+            else:
+                tmp_list.append(0)
 
-                if any(dico['label']=='QLTY' for dico in sub_dicts):
-                    my_item = next((item for item in sub_dicts if item['label'] == 'QLTY'), None)
-                    tmp_list.append(my_item['prob'])
-                else:
-                    tmp_list.append(0)
-
-            if any(tag in [dictio['label'] for dictio in sub_dicts] for tag in ['INSTR', 'QLTY'])==False :
-                tmp_list.extend([0,0])
+            if any(dico['label']=='QLTY' for dico in sub_dicts):
+                my_item = next((item for item in sub_dicts if item['label'] == 'QLTY'), None)
+                tmp_list.append(my_item['prob'])
+            else:
+                tmp_list.append(0)
             proba.append(tmp_list)
         proba = np.array(proba, dtype=object)
-        #
-        # for a in sorted(l, key= lambda x: (x['start'],x['end'], x['label'])):
-        #     print(a)
-
-        # predicted_probas = np.array(predicted_probas)
 
         return proba
+
 
 
 if __name__ == "__main__":
@@ -234,7 +227,7 @@ if __name__ == "__main__":
 
     # test the model
     text1 = ['I used to play guitar, now I play violin and it has some kind of distortion']
-    text2 = ["I'd like a sharp cello"]
+    text2 = ["I'd like an electric guitar"]
     # result = ner_model.predict(text2)
 
     predicted_proba = ner_model.predict_proba(text2)

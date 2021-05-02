@@ -1,4 +1,5 @@
 text,split_sentences
+text,split_sentences
 Example I would like to find a dark sounding piano,"[('example', 'NONE'), ('i', 'NONE'), ('would', 'NONE'), ('like', 'NONE'), ('to', 'NONE'), ('find', 'NONE'), ('a', 'NONE'), ('dark', 'QLTY'), ('sounding', 'NONE'), ('piano', 'INSTR')]"
 Example The composition that I am trying to write would really benifit from a thick bass,"[('example', 'NONE'), ('the', 'NONE'), ('composition', 'NONE'), ('that', 'NONE'), ('i', 'NONE'), ('am', 'NONE'), ('trying', 'NONE'), ('to', 'NONE'), ('write', 'NONE'), ('would', 'NONE'), ('really', 'NONE'), ('benifit', 'NONE'), ('from', 'NONE'), ('a', 'NONE'), ('thick', 'QLTY'), ('bass', 'INSTR')]"
 Example Does anyone know what kind of guitar pedals I could use to generate a thin sound,"[('example', 'NONE'), ('does', 'NONE'), ('anyone', 'NONE'), ('know', 'NONE'), ('what', 'NONE'), ('kind', 'NONE'), ('of', 'NONE'), ('guitar', 'INSTR'), ('pedals', 'NONE'), ('i', 'NONE'), ('could', 'NONE'), ('use', 'NONE'), ('to', 'NONE'), ('generate', 'NONE'), ('a', 'NONE'), ('thin', 'QLTY'), ('sound', 'NONE')]"

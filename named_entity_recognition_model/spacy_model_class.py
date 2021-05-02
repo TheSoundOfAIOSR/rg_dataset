@@ -1,6 +1,9 @@
 from __future__ import unicode_literals, print_function
+import warnings
+warnings.filterwarnings("ignore")
 import numpy as np
 import pandas as pd
+from tqdm.auto import tqdm
 import random
 import spacy
 from collections import defaultdict
@@ -14,7 +17,6 @@ from spacy.lang.en import English
 
 from sklearn.base import BaseEstimator
 from sklearn.utils.estimator_checks import check_estimator
-
 
 def split_data(data):
     ''' split the data into labeled (seed) and unlabeled sets
@@ -59,6 +61,7 @@ def transform_data(data):
 class NerModel(BaseEstimator):
     def __init__(self, model=None, n_iter=100, OUTPUT_DIR = Path("./named_entity_recognition_model/model1"), **model_hyper_parameters):
         super().__init__()
+        # self.w = w
         self.model = model
         self.OUTPUT_DIR = OUTPUT_DIR
         self.n_iter = n_iter
@@ -73,10 +76,7 @@ class NerModel(BaseEstimator):
         '''
 
         data = list(zip(X, Y))
-        # dt=np.dtype('int,float')
         data = np.array(data)
-        # print(type(data))
-        # print(data[50:52])
 
         if self.model is not None:
             nlp = spacy.load(self.model)
@@ -108,7 +108,7 @@ class NerModel(BaseEstimator):
         # Get names of other pipes to disable them during training to train # only NER and update the weights
         other_pipes = [pipe for pipe in nlp.pipe_names if pipe != 'ner']
         with nlp.disable_pipes(*other_pipes):  # only train NER
-            for itn in range(self.n_iter):
+            for itn in tqdm(range(self.n_iter), desc=" Training", position=0, leave=False): #
                 random.shuffle(data)
                 losses = {}
                 batches = minibatch(data,
@@ -118,10 +118,10 @@ class NerModel(BaseEstimator):
                     # Updating the weights
                     nlp.update(texts, annotations, sgd=optimizer,
                                drop=0.35, losses=losses)
-                print('Losses', losses)
+                # print('Losses', losses)
                 nlp.update(texts, annotations, sgd=optimizer,
                            drop=0.35, losses=losses)
-            print('Losses', losses)
+            # print('Losses', losses)
 
         # save model to output directory
         if self.OUTPUT_DIR is not None:
@@ -187,7 +187,7 @@ class NerModel(BaseEstimator):
         proba = []
         for k, v in groupby(l, key=lambda x: (x['start'], x['end'])):
             sub_dicts = list(v)
-            print (sub_dicts)
+            # print (sub_dicts)
             tmp_list = []
             if any(dico['label']=='INSTR' for dico in sub_dicts):
                 my_item = next((item for item in sub_dicts if item['label'] == 'INSTR'), None)
@@ -229,6 +229,8 @@ if __name__ == "__main__":
     text1 = ['I used to play guitar, now I play violin and it has some kind of distortion']
     text2 = ["I'd like an electric guitar"]
     # result = ner_model.predict(text2)
+
+    ner_model.predict(text2[0])
 
     predicted_proba = ner_model.predict_proba(text2)
 

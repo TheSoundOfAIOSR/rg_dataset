@@ -23,9 +23,7 @@
   },
   "labels":{
     "ner":[
-      "EDGE",
       "INSTR",
-      "NONE",
       "QLTY"
     ]
   }

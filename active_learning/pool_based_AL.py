@@ -1,4 +1,8 @@
-import ast
+from progress.spinner import MoonSpinner
+import sys
+from pyfiglet import Figlet
+from PyInquirer import style_from_dict, Token, prompt, Separator
+from pprint import pprint
 
 import numpy as np
 import pandas as pd
@@ -8,16 +12,25 @@ from named_entity_recognition_model.spacy_model_class import NerModel, split_dat
 from reddit_data_preprocessing.data_preprocessing import fetch_data, DATA_PATH, transform_labels
 
 
+# set the Style for some elements of our CLI
+style = style_from_dict({
+    Token.Separator: '#cc5454',
+    Token.QuestionMark: '#673ab7 bold',
+    Token.Selected: '#cc5454',  # default
+    Token.Pointer: '#673ab7 bold',
+    Token.Instruction: '',  # default
+    Token.Answer: '#f44336 bold',
+    Token.Question: '#673ab7 bold',
+})
+
+
 # Set the RNG seed for reproducibility
 RANDOM_STATE_SEED = 42
 np.random.seed(RANDOM_STATE_SEED)
 
 
-
 class ActiveLearning():
-    def __init__(self, n_queries=20, n_instances=10, data = fetch_data(data_path=DATA_PATH)):
-        self.n_queries = n_queries
-        self.n_instances = n_instances
+    def __init__(self, data = fetch_data(data_path=DATA_PATH)):
         self.data = data
 
 
@@ -83,31 +96,75 @@ class ActiveLearning():
 
 
     def query_sentences(self):
+        ''' fetch for the most informative sentences from the unlabelled dataset
+            and waits for the oracle(user) to annotate them
+
+        :yield: queried sentences and indexes each time the model is updated
+        '''
+
+        f = Figlet(font='doom', width=80)
+        print(f.renderText('Active Learning'))
+
         start_time = time.time()
+        print(' Loading data ...')
+        print(' Splitting and transforming data ...')
         X_train, X_pool, y_train, y_pool = self.load_split(self.data)
+        print(' Successfully preprocessed the data !')
+
         # specify our core estimator along with it's active learning model
         ner_model = NerModel()
+        print(' Collecting estimator and training data : Done !')
         learner = ActiveLearner(estimator=ner_model, X_training=X_train, y_training=y_train)
 
+        print("\n To start the annotation process using active Learning you need to specify :", end='\n       |_ ')
+        print("Nb of queries (How many times you want to update the NER model by sampling the unlabelled data)",
+              end='\n       |_ ')
+        print("Nb of instances (How many informative sentences should be returned)")
+
         # Update our model by pool-based sampling our "unlabeled" dataset
-        N_QUERIES = int(self.n_queries)
+        questions = [
+            {
+                'type': 'input',
+                'name': 'n_queries',
+                'message': 'Number of queries : '
+            },
+            {
+                'type': 'input',
+                'name': 'n_instances',
+                'message': 'Number of instances : '
+            }
+        ]
+        answers = prompt(questions, style=style)
+        N_QUERIES = int(answers['n_queries'])
 
         # Allow our model to query our unlabeled dataset for the most
         # informative points according to our query strategy (uncertainty sampling)
         for idx in range(N_QUERIES):
-            query_idx, query_instance = learner.query(X_pool, n_instances=int(self.n_instances))
-            print("--- %s seconds ---" % (time.time() - start_time))
-            yield query_idx, query_instance
+            print(" Query n°", idx + 1)
+            print(" Sampling sentences...")
+            query_idx, query_instance = learner.query(X_pool, n_instances=int(answers['n_instances']))
+            print(" Elapsed time : %s seconds" % (time.time() - start_time))
+            # yield query_idx, query_instance
             # print(query_idx)
-            # print(query_instance)
+            pprint(query_instance)
 
-            print("##########  ##########")
-            print("Query n°", idx)
-            confirmation = input("Continue ? (y/n) :")
+            sd_questions = [
+                {
+                    'type': 'input',
+                    'name': 'path',
+                    'message': 'Please provide a path to the newly annotated data : '
+                },
+                {
+                    'type': 'input',
+                    'name': 'confirmation',
+                    'message': 'Proceed : (y/N) '
+                }
+            ]
+            sd_answers = prompt(sd_questions, style=style)
 
-            if confirmation.lower() == 'y':
+            if sd_answers['confirmation'].lower() == 'y':
                 # fetch and the new annotated data
-                new_data = fetch_data(data_path='./doccano_data/project_2_dataset.jsonl')
+                new_data = fetch_data(data_path=sd_answers['path'])
                 new_seed, _ = self.split_new_data(new_data)
                 new_seed = self.transform_new_data(new_seed)
 
@@ -123,19 +180,22 @@ class ActiveLearning():
                 y = np.array(y)
 
                 #Teach our ActiveLearner model the record it has requested
+                print(' Teaching the NER model the newly annotated data...')
                 learner.teach(X=X, y=y)
 
                 # remove the queried instance from the unlabeled pool
                 sorted_query_idx = sorted(query_idx, reverse=True)
                 for index in sorted_query_idx:
                     del X_pool[index]
+                print(' Removing queried data from the pool : Done')
 
             else :
                 break
 
 
 if __name__ == "__main__":
-    al = ActiveLearning(n_queries=20, n_instances=10)
-    for _, sentences in al.query_sentences():
-        print(sentences)
+    al = ActiveLearning()
+    al.query_sentences()
+    # for _, sentences in al.query_sentences():
+    #     print(sentences)
 

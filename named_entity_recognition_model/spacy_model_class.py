@@ -83,7 +83,7 @@ class NerModel(BaseEstimator):
             print("loaded model '%s'" %self.model)
         else :
             nlp = spacy.blank('en')
-            print("Created blank 'en' model")
+            # print("Created blank 'en' model")
 
         # create the built-in pipeline components and add them to the pipeline
         # nlp.create_pipe works for built-ins that are registered with spaCy
@@ -108,7 +108,8 @@ class NerModel(BaseEstimator):
         # Get names of other pipes to disable them during training to train # only NER and update the weights
         other_pipes = [pipe for pipe in nlp.pipe_names if pipe != 'ner']
         with nlp.disable_pipes(*other_pipes):  # only train NER
-            for itn in tqdm(range(self.n_iter), desc=" Training", position=0, leave=False): #
+            for itn in tqdm(range(self.n_iter),
+                            desc=" Training the NER model on annotated data"): #
                 random.shuffle(data)
                 losses = {}
                 batches = minibatch(data,
@@ -129,7 +130,7 @@ class NerModel(BaseEstimator):
         if not self.OUTPUT_DIR.exists():
             self.OUTPUT_DIR.mkdir()
         nlp.to_disk(self.OUTPUT_DIR)
-        print("Saved model to", self.OUTPUT_DIR)
+        print(" Saved model to", self.OUTPUT_DIR)
 
     def predict(self, X):
         ''' test the trained model on a random text
@@ -235,7 +236,5 @@ if __name__ == "__main__":
     predicted_proba = ner_model.predict_proba(text2)
 
 
-    text_splitted = text1[0].split()
-    len(text_splitted)
 
 

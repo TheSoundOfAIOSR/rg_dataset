@@ -14,8 +14,8 @@ from pathlib import Path
 #Download spacy small model
 # Load SpaCy model
 def load_spacy():
+    print("SpaCy version: ", spacy.__version__)
     nlp = spacy.load("en_core_web_sm")
-    spacy.__version__
     # Getting the pipeline component
     ner = nlp.get_pipe("ner")
     return ner, nlp
@@ -133,7 +133,7 @@ def train_and_test(ner, nlp, TRAIN_DATA, TEST_DATA):
     with nlp.disable_pipes(*unaffected_pipes):
         for iteration in range(ITERATIONS):
             # print("Iteration: ", iteration)
-            # shuufling examples  before every iteration
+            # shufling examples  before every iteration
             random.shuffle(TRAIN_DATA)
             losses = {}
             # batch up the examples using spaCy's minibatch

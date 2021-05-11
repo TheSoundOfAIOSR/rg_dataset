@@ -63,6 +63,8 @@ class NerModel(BaseEstimator):
                     )
                     # print("Losses", losses)
 
+        self.nlp.to_disk("./saved_model")
+
     def evaluate(self, test_data):
         ''' test the trained NER model
 
@@ -80,6 +82,7 @@ class NerModel(BaseEstimator):
         :param X: sentence to make inferences on
         :return: None
         '''
+        self.nlp = spacy.load("./saved_model")
         doc = self.nlp(X)
         print("Entities", [(ent.text, ent.label_) for ent in doc.ents])
 
@@ -92,13 +95,14 @@ class NerModel(BaseEstimator):
 if __name__ == '__main__':
 
     ner, nlp = load_spacy()
-    DATA = load_cleaned_data()
-    TRAIN_DATA, TEST_DATA = split_data(DATA)
-
+    # DATA = load_cleaned_data()
+    # TRAIN_DATA, TEST_DATA = split_data(DATA)
     ner = NerModel(ner, nlp)
-    ner.fit(TRAIN_DATA)
-    ner.evaluate(TEST_DATA)
+    # ner.fit(TRAIN_DATA)
+    # ner.evaluate(TEST_DATA)
 
     sentence = 'I really like the distortion in this guitar'
     ner.predict(sentence)
+
+
 

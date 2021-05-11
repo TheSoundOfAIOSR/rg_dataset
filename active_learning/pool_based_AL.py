@@ -103,7 +103,7 @@ class ActiveLearning():
         '''
 
         f = Figlet(font='doom', width=80)
-        print(f.renderText('Active Learning'))
+        print(f.renderText(' Active Learning'))
 
         start_time = time.time()
         print(' Loading data ...')
@@ -126,12 +126,12 @@ class ActiveLearning():
             {
                 'type': 'input',
                 'name': 'n_queries',
-                'message': 'Number of queries : '
+                'message': ' Number of queries : '
             },
             {
                 'type': 'input',
                 'name': 'n_instances',
-                'message': 'Number of instances : '
+                'message': ' Number of instances : '
             }
         ]
         answers = prompt(questions, style=style)
@@ -152,12 +152,12 @@ class ActiveLearning():
                 {
                     'type': 'input',
                     'name': 'path',
-                    'message': 'Please provide a path to the newly annotated data : '
+                    'message': ' Please provide a path to the newly annotated data : '
                 },
                 {
                     'type': 'input',
                     'name': 'confirmation',
-                    'message': 'Proceed : (y/N) '
+                    'message': ' Proceed : (y/N) '
                 }
             ]
             sd_answers = prompt(sd_questions, style=style)

@@ -1,14 +1,15 @@
+import itertools
+
 import pandas as pd
 import re
 import numpy as np
 from collections import Counter
 
 DATA_PATH = './doccano_data/project_1_dataset.jsonl'
-OUTPUT_PATH = './reddit_data_preprocessing/processed_data.csv'
+OUTPUT_PATH = './reddit_data_preprocessing/pf_data.csv'
 
 
 def fetch_data(data_path=DATA_PATH):
-
     '''fetch the data project_1_dataset.jsonl from the doccano_data repository
 
     :param data_path: path to the data JSONL file
@@ -18,6 +19,7 @@ def fetch_data(data_path=DATA_PATH):
     data = pd.read_json(path_or_buf=data_path, lines=True)
     return data
 
+
 def transform_labels(data):
     for idx, row in data.iterrows():
         for dic in row['annotations']:
@@ -25,7 +27,10 @@ def transform_labels(data):
                 dic['label'] = 'INSTR'
             elif dic['label'] == 2:
                 dic['label'] = 'QLTY'
+            elif dic['label'] == 11:
+                dic['label'] = 'EDGE'
     return data
+
 
 def split_data(data):
     ''' split the data into a labeled set (seed) and an unlabeled set
@@ -40,12 +45,13 @@ def split_data(data):
     unlabelled_dataset = pd.DataFrame(columns=important_columns)
 
     for idx, row in data.iterrows():
-        if not row['annotations'] :
+        if not row['annotations']:
             unlabelled_dataset = unlabelled_dataset.append(row[important_columns], ignore_index=True)
-        else :
+        else:
             seed = seed.append(row[important_columns], ignore_index=True)
 
     return seed, unlabelled_dataset
+
 
 def remove_special_chars(x):
     ''' remove URLs and special chars
@@ -97,36 +103,25 @@ def process_data(data):
     for idx, row in data.iterrows():
         tuple_list = []
         for dic in row['annotations']:
-            tuple_list.append((row['text'][dic['start_offset'] : dic['end_offset']], dic['label']))
+            tuple_list.append((row['text'][dic['start_offset']: dic['end_offset']].strip(), dic['label']))
         row['tagged_words'] = dict(tuple_list)
 
-
-    # clean text data
-    data['text'] = data['text'].apply(remove_special_chars)
-
-    # split text into a list of tuples (word, label) where the word is the word in each text
-    # and the label is either 3 (if it's not annotated) or 1-2 if it's annotated
-    # for idx, row in data.iterrows():
-    #     word_tuples = []
-    #     for word in row['text'].split():
-    #         if word not in row['tagged_words'].keys() :
-    #             word_tuples.append((word.lower(),'NONE'))
-    #         else:
-    #             word_tuples.append((word.lower(), row['tagged_words'][word]))
-    #     row['split_sentences'] = word_tuples
-
     for idx, row in data.iterrows():
-
-        positions = []
-        for key in row['tagged_words'].keys():
-            position = row['text'].find(key)
-            positions.extend((position, position + len(key)))
+        positions = [(dico['start_offset'], dico['end_offset']) for dico in row['annotations']]
+        positions = list(itertools.chain(*positions))
+        # remove duplicates
+        positions = list(dict.fromkeys(positions))
         positions.sort()
 
         if positions[0] != 0:
-            positions.insert(0,0)
+            positions.insert(0, 0)
+        print(positions)
 
         text_split = [row['text'][i:j] for i, j in zip(positions, positions[1:] + [None])]
+        text_split = [remove_special_chars(text) for text in text_split]
+        # remove empty index from list
+        text_split = list(filter(None, text_split))
+        # print(text_split)
 
         tuple_list = []
         for substr in text_split:
@@ -137,15 +132,15 @@ def process_data(data):
                     tmp_sl = substr.split()
                     tmp_tl = [(word.lower(), 'NONE') for word in tmp_sl]
                     tuple_list.extend(tmp_tl)
-            else :
-                tuple_list.append((substr.lower(),row['tagged_words'][substr]))
+            else:
+                tuple_list.append((substr.lower(), row['tagged_words'][substr]))
 
         row['split_sentences'] = tuple_list
-
 
     # drop annotations and tagged_words column
     columns_to_drop = ['annotations', 'tagged_words']
     data = data.drop(columns_to_drop, axis=1)
+    data['text'] = data['text'].apply(remove_special_chars)
 
     # save the cleaned data into a csv
     data.to_csv(path_or_buf=OUTPUT_PATH, index=False)
@@ -153,10 +148,8 @@ def process_data(data):
     return data
 
 
-
-
 if __name__ == '__main__':
-    data = fetch_data(DATA_PATH)
+    data = fetch_data('./doccano_data/filtered_dataset.jsonl')
     seed, other = split_data(data)
     seed = transform_labels(seed)
     seed = process_data(seed)

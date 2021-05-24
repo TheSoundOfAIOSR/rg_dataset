@@ -6,7 +6,7 @@ import numpy as np
 from collections import Counter
 
 DATA_PATH = './doccano_data/project_1_dataset.jsonl'
-OUTPUT_PATH = './reddit_data_preprocessing/pf_data.csv'
+OUTPUT_PATH = './reddit_data_preprocessing/processed_data_v1.csv'
 
 
 def fetch_data(data_path=DATA_PATH):
@@ -149,7 +149,7 @@ def process_data(data):
 
 
 if __name__ == '__main__':
-    data = fetch_data('./doccano_data/filtered_dataset.jsonl')
+    data = fetch_data(DATA_PATH)
     seed, other = split_data(data)
     seed = transform_labels(seed)
     seed = process_data(seed)

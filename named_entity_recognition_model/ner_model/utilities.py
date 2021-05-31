@@ -1,12 +1,18 @@
+import math
 import re
 import numpy
 from numpy.core.defchararray import find
 import random
 import pandas as pd
+import matplotlib.pyplot as plt
+import os
 from pathlib import Path
 
+ITERATIONS = 40
+DROPOUT = 0.1
+DATA_PATH = "./../../reddit_data_preprocessing/pf_data.csv"
 
-def load_cleaned_data(data_path='processed_data.csv'):
+def load_cleaned_data(data_path=DATA_PATH):
     """
     Go through every sentence's all word-tag pair (except "NONE")
     and calculate the start and end index.
@@ -83,21 +89,93 @@ def load_cleaned_data(data_path='processed_data.csv'):
 def split_data(DATA):
     random.shuffle(DATA)
 
-    # First 5 elements form test data after shuffling
-    TEST_DATA = DATA[:5]
+    # Randomly pull out 10 % segments for test data
+    test_length = math.floor((10 / 100) * len(DATA))
+    TEST_DATA = DATA[:test_length]
 
     # for text, annotations in TEST_DATA:
     #     print(text)
     #     print(annotations)
 
-    TRAIN_DATA = DATA[5:len(DATA)]
+    TRAIN_DATA = DATA[test_length:len(DATA)]
     print("\n")
 
     # for text, annotations in TRAIN_DATA:
     #   print(text)
     #   print(annotations)
 
+    print("\nTotal sentences: ", len(DATA))
     print("\nLength of test data: ", len(TEST_DATA))
     print("Length of train data: ", len(TRAIN_DATA))
 
     return TRAIN_DATA, TEST_DATA
+
+
+def draw_prf_graph(train_scores):
+    precision = []
+    recall = []
+    fscore = []
+
+    qlty_p = []
+    qlty_r = []
+    qlty_f = []
+
+    instr_p = []
+    instr_r = []
+    instr_f = []
+
+    edge_p = []
+    edge_r = []
+    edge_f = []
+
+    # Extract P, R, F from train_score
+    for i, train_score in enumerate(train_scores):
+        for key, cat in train_score.items():
+            if key == "ents_p": precision.append(cat)
+            if key == "ents_r": recall.append(cat)
+            if key == "ents_f": fscore.append(cat)
+            if key == "ents_per_type":
+                for attribute, value in cat.items():
+                    if attribute == "QLTY":
+                        for k, sc in value.items():
+                            if k == "p": qlty_p.append(sc)
+                            if k == "r": qlty_r.append(sc)
+                            if k == "f": qlty_f.append(sc)
+                    if attribute == "INSTR":
+                        for k, sc in value.items():
+                            if k == "p": instr_p.append(sc)
+                            if k == "r": instr_r.append(sc)
+                            if k == "f": instr_f.append(sc)
+                    if attribute == "EDGE":
+                        for k, sc in value.items():
+                            if k == "p": edge_p.append(sc)
+                            if k == "r": edge_r.append(sc)
+                            if k == "f": edge_f.append(sc)
+
+    def plot_graph(precision, recall, fscore, title, keyword):
+        my_dpi = 200
+        plt.rcParams['figure.figsize'] = 10, 5
+        plt.figure(figsize=(1280 / my_dpi, 720 / my_dpi), dpi=my_dpi)
+        x = list(range(1, ITERATIONS + 1))
+        plt.plot(x, precision, color='red', linestyle='solid', linewidth=1,
+                 marker='o', markerfacecolor='red', markersize=2)
+        plt.plot(x, recall, color='blue', linestyle='solid', linewidth=1,
+                 marker='o', markerfacecolor='blue', markersize=2)
+        plt.plot(x, fscore, color='green', linestyle='solid', linewidth=1,
+                 marker='o', markerfacecolor='green', markersize=2)
+        plt.gca().legend(('precision', 'recall', 'fscore'), loc='best')
+        plt.xlabel('Iteration')
+        plt.ylabel('Score')
+        plt.title(title)
+
+        # If the directory does not exist, create it
+        if not os.path.exists("img"):
+            os.makedirs("img")
+
+        plt.savefig("img/plot_train_prf_" + keyword + ".png", format="png", dpi=my_dpi)
+        plt.show()
+
+    plot_graph(precision, recall, fscore, title="Training Overall PRF Scores", keyword="overall")
+    plot_graph(qlty_p, qlty_r, qlty_f, title="Training QLTY PRF Scores", keyword="qlty")
+    plot_graph(instr_p, instr_r, instr_f, title="Training INSTR PRF Scores", keyword="instr")
+    plot_graph(edge_p, edge_r, edge_f, title="Training EDGE PRF Scores", keyword="edge")

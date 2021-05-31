@@ -5,15 +5,17 @@ from tqdm.auto import tqdm
 import spacy
 from spacy import displacy
 from spacy.util import minibatch, compounding
+from spacy.training import Example
+from spacy.scorer import Scorer
 from sklearn.base import BaseEstimator
-from utilities import load_cleaned_data, split_data
+from utilities import load_cleaned_data, split_data, DROPOUT, ITERATIONS, draw_prf_graph
 
 numpy.random.seed(0)
 
 
 def load_spacy():
     nlp = spacy.load("en_core_web_sm")
-    spacy.__version__
+    print("spaCy version: ", spacy.__version__)
     # Getting the pipeline component
     ner = nlp.get_pipe("ner")
     return ner, nlp
@@ -40,30 +42,66 @@ class NerModel(BaseEstimator):
                 self.ner.add_label(ent[2])
 
         # Disable pipeline components that are not changed
-        pipe_exceptions = ["ner", "trf_wordpiecer", "trf_tok2vec"]
-        unaffected_pipes = [pipe for pipe in self.nlp.pipe_names if pipe not in pipe_exceptions]
+        pipe_exceptions = ["ner"]
+        unaffected_pipes = [pipe for pipe in nlp.pipe_names if pipe not in pipe_exceptions]
+
+        scorer = Scorer()
+
+        # Store prediction and gold standard ref. for each sentence
+        # (to be used by Scorer)
+        example_list = []
+
+        # Store the PRF scores for every iteration
+        train_scores = []
 
         # Train the NER model
-        with self.nlp.disable_pipes(*unaffected_pipes):
-            for iteration in tqdm(range(self.n_iter),
-                                  desc=" Training the NER model on annotated data"):
-                # print("Iteration: ", iteration)
-                # shuufling examples  before every iteration
-                random.shuffle(train_data)
+        with nlp.select_pipes(enable=pipe_exceptions, disable=unaffected_pipes):
+            # Create a list of Examples objects
+            examples = []
+
+            for text, annots in train_data:
+                examples.append(Example.from_dict(nlp.make_doc(text), annots))
+
+            # optimizer = nlp.create_optimizer()
+            # get_examples = lambda: examples
+            # optimizer = nlp.initialize(get_examples)
+
+            for iteration in range(ITERATIONS):
+                print("Iteration: ", iteration)
+                # shuffling examples  before every iteration
+                random.shuffle(examples)
                 losses = {}
+
+                # optimizer = nlp.resume_training()
+
                 # batch up the examples using spaCy's minibatch
-                batches = minibatch(train_data, size=compounding(4.0, 32.0, 1.001))
+                batches = minibatch(examples, size=compounding(4.0, 32.0, 1.001))
                 for batch in batches:
-                    texts, annotations = zip(*batch)
-                    self.nlp.update(
-                        texts,  # batch of texts
-                        annotations,  # batch of annotations
-                        drop=self.dropout,  # dropout - make it harder to memorise data
+                    nlp.update(
+                        batch,
+                        drop=DROPOUT,  # dropout - make it harder to memorise data
                         losses=losses
                     )
+                    # print(batch)
                     # print("Losses", losses)
 
+                # After training every iteration, calculate scores
+                example_list = []
+                for text, annot in train_data:
+                    # Create a Doc of our text
+                    # doc_gold_text = nlp.make_doc(text)
+                    pred_value = nlp(text)
+                    # reference = (Example.from_dict(doc_gold_text, annot))
+                    gold_standard = {"entities": annot["entities"]}
+                    example_list.append(Example.from_dict(pred_value, gold_standard))
+
+                # Generate per-entity scores by comparing predicted with gold-standard values
+                scores = scorer.score(examples=example_list)
+                train_scores.append(scores)
+
+        draw_prf_graph(train_scores)
         self.nlp.to_disk("./saved_model")
+
 
     def evaluate(self, test_data):
         ''' test the trained NER model
@@ -73,8 +111,42 @@ class NerModel(BaseEstimator):
         '''
         for example in test_data:
             print(example[0])
-        doc = self.nlp(example[0])
-        print("Entities", [(ent.text, ent.label_) for ent in doc.ents])
+            doc = self.nlp(example[0])
+            print("Entities", [(ent.text, ent.label_) for ent in doc.ents])
+
+        scorer = Scorer(self.nlp)
+        example_list = []
+
+        # Get the PRF scores for test_data
+        for text, annot in test_data:
+            # Create a Doc of our text
+            doc_gold_text = nlp.make_doc(text)
+
+            # Create gold-standard using the Doc of text
+            # and original (correct) entities
+            gold_standard = {"text": doc_gold_text, "entities": annot["entities"]}
+
+            # Get the predictions of current test data sentence
+            pred_value = self.nlp(text)
+
+            # Create and append to the example list (of type Example) the prediction
+            # as well as the gold standard (reference)
+            example_list.append(Example.from_dict(pred_value, gold_standard))
+
+        # Generate per-entity scores by comparing predicted with gold-standard values
+        scores = scorer.score(examples=example_list)
+
+        print("All scores: ", scores)
+
+        print("\nents_p (aka Precision): ", scores['ents_p'])
+        print("ents_r (aka Recall): ", scores['ents_r'])
+        print("ents_f (aka fscore): ", scores['ents_f'])
+
+        print("\nINSTR: ", scores['ents_per_type']['INSTR'])
+        print("QLTY: ", scores['ents_per_type']['QLTY'])
+        print("EDGE: ", scores['ents_per_type']['EDGE'])
+        print("\n")
+
 
     def predict(self, X):
         ''' make inferences on unseen data
@@ -95,11 +167,11 @@ class NerModel(BaseEstimator):
 if __name__ == '__main__':
 
     ner, nlp = load_spacy()
-    # DATA = load_cleaned_data()
-    # TRAIN_DATA, TEST_DATA = split_data(DATA)
-    ner = NerModel(ner, nlp)
-    # ner.fit(TRAIN_DATA)
-    # ner.evaluate(TEST_DATA)
+    DATA = load_cleaned_data()
+    TRAIN_DATA, TEST_DATA = split_data(DATA)
+    ner = NerModel(ner, nlp, n_iter=ITERATIONS, dropout=DROPOUT)
+    ner.fit(TRAIN_DATA)
+    ner.evaluate(TEST_DATA)
 
     sentence = 'I really like the distortion in this guitar'
     ner.predict(sentence)

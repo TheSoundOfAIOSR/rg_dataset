@@ -6,11 +6,11 @@ import random
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
-from pathlib import Path
 
 ITERATIONS = 40
 DROPOUT = 0.1
 DATA_PATH = "./../../reddit_data_preprocessing/pf_data.csv"
+
 
 def load_cleaned_data(data_path=DATA_PATH):
     """
@@ -56,11 +56,33 @@ def load_cleaned_data(data_path=DATA_PATH):
                 start_index = start_index + 0
                 end_index = start_index + len(word_pair_list[0])
 
-                # Doesn't happen, just for a check
+                # Incase word not found in the sentence
                 if start_index == -1:
                     print("-1 error")
                     print(data['text'][index])
                     break
+
+                # TODO: Test this extra check when more cleaner data is available.
+                # There should be a blank space after every tagged word (assuming it's not the last word of
+                # the sentence), otherwise it implies this tagged word is currently a part of next word,
+                # and so this isn't what we were looking for. So keep looking ahead.
+                # Example: "guitar" exists in "guitarist", so skip this.
+
+                # print(data['text'][index].lower())
+                # print(start_index, end_index)
+                # print(data['text'][index].lower()[end_index])
+
+                # while True:
+                #     if len(data['text'][index].lower()) != end_index:
+                #         if data['text'][index].lower()[end_index] != " ":
+                #             start_index = find(data['text'][index].lower(), word_pair_list[0],
+                #                                start=end_index + 1).astype(numpy.int64)
+                #             start_index = start_index + 0
+                #             end_index = start_index + len(word_pair_list[0])
+                #         else:
+                #             break
+                #     else:
+                #         break
 
                 # Check if this start_index and/or end_index is already in the list:
                 # (To prevent overlapping with already tagged words)
@@ -81,9 +103,15 @@ def load_cleaned_data(data_path=DATA_PATH):
                 annot_list.append((start_index, end_index, word_pair_list[1]))
 
         DATA.append((data['text'][index].lower(), {"entities": annot_list}))
-        # print(indices_list)
 
+    # save_list_to_txt(DATA)
     return DATA
+
+
+def save_list_to_txt(data):
+    with open('data.txt', 'w') as f:
+        for item in data:
+            f.write("%s\n" % str(item))
 
 
 def split_data(DATA):

@@ -8,7 +8,7 @@ from spacy.util import minibatch, compounding
 from spacy.training import Example
 from spacy.scorer import Scorer
 from sklearn.base import BaseEstimator
-from utilities import load_cleaned_data, split_data, DROPOUT, ITERATIONS, draw_prf_graph
+from utilities import load_cleaned_data, split_data, DROPOUT, ITERATIONS, draw_prf_graph, plot_training_loss_graph
 
 numpy.random.seed(0)
 
@@ -47,12 +47,12 @@ class NerModel(BaseEstimator):
 
         scorer = Scorer()
 
-        # Store prediction and gold standard ref. for each sentence
-        # (to be used by Scorer)
-        example_list = []
-
         # Store the PRF scores for every iteration
         train_scores = []
+
+        # Store losses after every iteration
+        # Each loss is itself an average of losses within a single iteration
+        loss_list = []
 
         # Train the NER model
         with nlp.select_pipes(enable=pipe_exceptions, disable=unaffected_pipes):
@@ -76,15 +76,16 @@ class NerModel(BaseEstimator):
 
                 # batch up the examples using spaCy's minibatch
                 batches = minibatch(examples, size=compounding(4.0, 32.0, 1.001))
-                for batch in batches:
+                for count, batch in enumerate(batches):
                     nlp.update(
                         batch,
                         drop=DROPOUT,  # dropout - make it harder to memorise data
                         losses=losses
                     )
-                    # print(batch)
-                    # print("Losses", losses)
 
+                loss = losses["ner"]/(count+1)
+                print(f"Loss at epoch {iteration}: ", loss)
+                loss_list.append(loss)
                 # After training every iteration, calculate scores
                 example_list = []
                 for text, annot in train_data:
@@ -93,6 +94,9 @@ class NerModel(BaseEstimator):
                     pred_value = nlp(text)
                     # reference = (Example.from_dict(doc_gold_text, annot))
                     gold_standard = {"entities": annot["entities"]}
+
+                    # Store prediction and gold standard ref. for each sentence
+                    # (to be used by Scorer.score)
                     example_list.append(Example.from_dict(pred_value, gold_standard))
 
                 # Generate per-entity scores by comparing predicted with gold-standard values
@@ -100,8 +104,8 @@ class NerModel(BaseEstimator):
                 train_scores.append(scores)
 
         draw_prf_graph(train_scores)
+        plot_training_loss_graph(loss_list, "Losses with epochs")
         self.nlp.to_disk("./saved_model")
-
 
     def evaluate(self, test_data):
         ''' test the trained NER model
@@ -109,10 +113,10 @@ class NerModel(BaseEstimator):
         :param test_data: processed test data
         :return: None
         '''
-        for example in test_data:
-            print(example[0])
-            doc = self.nlp(example[0])
-            print("Entities", [(ent.text, ent.label_) for ent in doc.ents])
+        # for example in test_data:
+        #     print(example[0])
+        #     doc = self.nlp(example[0])
+        #     print("Entities", [(ent.text, ent.label_) for ent in doc.ents])
 
         scorer = Scorer(self.nlp)
         example_list = []
@@ -146,7 +150,6 @@ class NerModel(BaseEstimator):
         print("QLTY: ", scores['ents_per_type']['QLTY'])
         print("EDGE: ", scores['ents_per_type']['EDGE'])
         print("\n")
-
 
     def predict(self, X):
         ''' make inferences on unseen data

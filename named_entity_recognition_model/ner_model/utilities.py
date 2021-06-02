@@ -108,8 +108,8 @@ def load_cleaned_data(data_path=DATA_PATH):
     return DATA
 
 
-def save_list_to_txt(data):
-    with open('data.txt', 'w') as f:
+def save_list_to_txt(data, keyword):
+    with open(keyword + ".txt", 'w') as f:
         for item in data:
             f.write("%s\n" % str(item))
 
@@ -207,3 +207,23 @@ def draw_prf_graph(train_scores):
     plot_graph(qlty_p, qlty_r, qlty_f, title="Training QLTY PRF Scores", keyword="qlty")
     plot_graph(instr_p, instr_r, instr_f, title="Training INSTR PRF Scores", keyword="instr")
     plot_graph(edge_p, edge_r, edge_f, title="Training EDGE PRF Scores", keyword="edge")
+
+
+def plot_training_loss_graph(losses, title):
+    my_dpi = 200
+    plt.rcParams['figure.figsize'] = 10, 5
+    plt.figure(figsize=(1280 / my_dpi, 720 / my_dpi), dpi=my_dpi)
+    x = list(range(1, ITERATIONS + 1))
+    plt.plot(x, losses, color='blue', linestyle='solid', linewidth=1,
+             marker='o', markerfacecolor='green', markersize=2)
+    plt.xlabel('Iteration')
+    plt.ylabel('Loss')
+    plt.title(title)
+
+    # If the directory does not exist, create it
+    if not os.path.exists("img"):
+        os.makedirs("img")
+
+    plt.savefig("img/plot_train_loss" + ".png", format="png", dpi=my_dpi)
+    plt.show()
+    save_list_to_txt(losses, "img/losses_list")

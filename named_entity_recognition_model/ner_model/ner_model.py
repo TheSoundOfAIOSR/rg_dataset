@@ -8,7 +8,9 @@ from spacy.util import minibatch, compounding
 from spacy.training import Example
 from spacy.scorer import Scorer
 from sklearn.base import BaseEstimator
-from utilities import load_cleaned_data, split_data, DROPOUT, ITERATIONS, draw_prf_graph, plot_training_loss_graph
+from utilities import load_cleaned_data, split_data, DROPOUT, ITERATIONS, draw_prf_graph, plot_training_loss_graph, \
+    draw_train_eval_compare_graph, save_list_to_pickle, load_list_from_pickle, LEARN_RATE
+import pickle
 
 numpy.random.seed(0)
 
@@ -22,7 +24,7 @@ def load_spacy():
 
 
 class NerModel(BaseEstimator):
-    def __init__(self, ner,  nlp, model=None, n_iter=64, dropout=0.1,  **model_hyper_parameters):
+    def __init__(self, ner, nlp, model=None, n_iter=64, dropout=0.1, **model_hyper_parameters):
         super().__init__()
         self.ner = ner
         self.nlp = nlp
@@ -30,12 +32,13 @@ class NerModel(BaseEstimator):
         self.n_iter = n_iter
         self.dropout = dropout
 
-    def fit(self, train_data):
-        ''' train the Named Entity Recognition model
+    def fit(self, train_data, eval_data):
+        """ train the Named Entity Recognition model
 
+        :param eval_data: evaluation data for testing after every epoch
         :param train_data: processed training data
         :return: None
-        '''
+        """
         # Adding labels to the NER
         for _, annotations in train_data:
             for ent in annotations.get("entities"):
@@ -49,6 +52,7 @@ class NerModel(BaseEstimator):
 
         # Store the PRF scores for every iteration
         train_scores = []
+        eval_scores = []
 
         # Store losses after every iteration
         # Each loss is itself an average of losses within a single iteration
@@ -62,9 +66,15 @@ class NerModel(BaseEstimator):
             for text, annots in train_data:
                 examples.append(Example.from_dict(nlp.make_doc(text), annots))
 
-            # optimizer = nlp.create_optimizer()
-            # get_examples = lambda: examples
-            # optimizer = nlp.initialize(get_examples)
+            # Create an optimizer for the pipeline component, and set lr
+            optimizer = nlp.create_optimizer()
+
+            # optimizer = nlp.initialize()
+            # NOTE: Cannot use nlp.initilaize (v3) (aka nlp.begin_training for v2) on pretrained models.
+            # Use nlp.create_optimizer for training on existing model (We used pretrained en_core_web_sm).
+            # ref: https://stackoverflow.com/a/66369163/6475377
+
+            optimizer.learn_rate = LEARN_RATE
 
             for iteration in range(ITERATIONS):
                 print("Iteration: ", iteration)
@@ -80,10 +90,11 @@ class NerModel(BaseEstimator):
                     nlp.update(
                         batch,
                         drop=DROPOUT,  # dropout - make it harder to memorise data
-                        losses=losses
+                        losses=losses,
+                        sgd=optimizer
                     )
 
-                loss = losses["ner"]/(count+1)
+                loss = losses["ner"] / (count + 1)
                 print(f"Loss at epoch {iteration}: ", loss)
                 loss_list.append(loss)
                 # After training every iteration, calculate scores
@@ -103,16 +114,22 @@ class NerModel(BaseEstimator):
                 scores = scorer.score(examples=example_list)
                 train_scores.append(scores)
 
-        draw_prf_graph(train_scores)
+                # Evaluate on eval_data
+                eval_scores.append(self.evaluate(test_data=eval_data))
+
+        draw_prf_graph(train_scores, keyword="train")
+        draw_prf_graph(eval_scores, keyword="eval")
+        draw_train_eval_compare_graph(train_scores, eval_scores)
+
         plot_training_loss_graph(loss_list, "Losses with epochs")
         self.nlp.to_disk("./saved_model")
 
     def evaluate(self, test_data):
-        ''' test the trained NER model
+        """ evaluate the trained NER model
 
         :param test_data: processed test data
         :return: None
-        '''
+        """
         # for example in test_data:
         #     print(example[0])
         #     doc = self.nlp(example[0])
@@ -120,6 +137,8 @@ class NerModel(BaseEstimator):
 
         scorer = Scorer(self.nlp)
         example_list = []
+
+        random.shuffle(test_data)
 
         # Get the PRF scores for test_data
         for text, annot in test_data:
@@ -140,23 +159,33 @@ class NerModel(BaseEstimator):
         # Generate per-entity scores by comparing predicted with gold-standard values
         scores = scorer.score(examples=example_list)
 
-        print("All scores: ", scores)
+        # print("All scores: ", scores)
+        #
+        # print("\nents_p (aka Precision): ", scores['ents_p'])
+        # print("ents_r (aka Recall): ", scores['ents_r'])
+        # print("ents_f (aka fscore): ", scores['ents_f'])
+        #
+        # print("\nINSTR: ", scores['ents_per_type']['INSTR'])
+        # print("QLTY: ", scores['ents_per_type']['QLTY'])
+        # print("EDGE: ", scores['ents_per_type']['EDGE'])
+        # print("\n")
 
-        print("\nents_p (aka Precision): ", scores['ents_p'])
-        print("ents_r (aka Recall): ", scores['ents_r'])
-        print("ents_f (aka fscore): ", scores['ents_f'])
+        return scores
 
-        print("\nINSTR: ", scores['ents_per_type']['INSTR'])
-        print("QLTY: ", scores['ents_per_type']['QLTY'])
-        print("EDGE: ", scores['ents_per_type']['EDGE'])
-        print("\n")
+    def test(self, test_data):
+        """
+        Perform final testing on unseen test_data
+        :param test_data: the unseen test data
+        :return:
+        """
+        # TODO
 
     def predict(self, X):
-        ''' make inferences on unseen data
+        """ make inferences on unseen data
 
         :param X: sentence to make inferences on
         :return: None
-        '''
+        """
         self.nlp = spacy.load("./saved_model")
         doc = self.nlp(X)
         print("Entities", [(ent.text, ent.label_) for ent in doc.ents])
@@ -167,17 +196,26 @@ class NerModel(BaseEstimator):
     #     :return:
     #     '''
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     ner, nlp = load_spacy()
-    DATA = load_cleaned_data()
-    TRAIN_DATA, TEST_DATA = split_data(DATA)
+
+    # DATA = load_cleaned_data()
+    # TRAIN_DATA, EVAL_DATA, TEST_DATA = split_data(DATA)
+    # save_list_to_pickle(TRAIN_DATA, "TRAIN_DATA")
+    # save_list_to_pickle(EVAL_DATA, "EVAL_DATA")
+    # save_list_to_pickle(TEST_DATA, "TEST_DATA")
+
+    # Load pickled data list from data folder
+    TRAIN_DATA = load_list_from_pickle("TRAIN_DATA")
+    EVAL_DATA = load_list_from_pickle("EVAL_DATA")
+    TEST_DATA = load_list_from_pickle("TEST_DATA")
+
+    # We're gonna use TEST (5% + 5% = 10%) for evaluation
+    TEST = EVAL_DATA + TEST_DATA
+    print("Size of total TEST data: ", len(TEST))
     ner = NerModel(ner, nlp, n_iter=ITERATIONS, dropout=DROPOUT)
-    ner.fit(TRAIN_DATA)
-    ner.evaluate(TEST_DATA)
+    ner.fit(TRAIN_DATA, TEST)
 
     sentence = 'I really like the distortion in this guitar'
     ner.predict(sentence)
-
-
-

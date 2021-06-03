@@ -1,4 +1,5 @@
 import math
+import pickle
 import re
 import numpy
 from numpy.core.defchararray import find
@@ -6,9 +7,12 @@ import random
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+import numpy as np
 
-ITERATIONS = 40
+ITERATIONS = 20
 DROPOUT = 0.1
+LEARN_RATE = 0.001
+
 DATA_PATH = "./../../reddit_data_preprocessing/pf_data.csv"
 
 
@@ -114,12 +118,33 @@ def save_list_to_txt(data, keyword):
             f.write("%s\n" % str(item))
 
 
+def save_list_to_pickle(list, name):
+    # If the directory does not exist, create it
+    if not os.path.exists("data"):
+        os.makedirs("data")
+
+    with open('data/' + name + '.pkl', 'wb') as f:
+        pickle.dump(list, f)
+
+
+def load_list_from_pickle(filename):
+    with open("data/" + filename + '.pkl', 'rb') as f:
+        list = pickle.load(f)
+    return list
+
+
 def split_data(DATA):
     random.shuffle(DATA)
 
-    # Randomly pull out 10 % segments for test data
+    # Randomly pull out 10 % segments of DATA for test + eval
     test_length = math.floor((10 / 100) * len(DATA))
-    TEST_DATA = DATA[:test_length]
+    TEST = DATA[:test_length]
+
+    random.shuffle(TEST)
+    # Randomly pull out 50 % segments of TEST_DATA for EVAL_DATA
+    eval_length = math.floor((50 / 100) * len(TEST))
+    EVAL_DATA = TEST[:eval_length]
+    TEST_DATA = TEST[eval_length:len(TEST)]
 
     # for text, annotations in TEST_DATA:
     #     print(text)
@@ -133,13 +158,46 @@ def split_data(DATA):
     #   print(annotations)
 
     print("\nTotal sentences: ", len(DATA))
-    print("\nLength of test data: ", len(TEST_DATA))
     print("Length of train data: ", len(TRAIN_DATA))
+    print("Length of evaluation data: ", len(EVAL_DATA))
+    print("Length of test data: ", len(TEST_DATA))
 
-    return TRAIN_DATA, TEST_DATA
+    return TRAIN_DATA, EVAL_DATA, TEST_DATA
 
 
-def draw_prf_graph(train_scores):
+def plot_graph(title, keyword, precision=None, recall=None, fscore=None):
+    my_dpi = 200
+    plt.rcParams['figure.figsize'] = 10, 5
+    plt.figure(figsize=(1280 / my_dpi, 720 / my_dpi), dpi=my_dpi)
+    x = list(range(1, ITERATIONS + 1))
+    legend_to_show = ()
+    if precision is not None:
+        plt.plot(x, precision, color='red', linestyle='solid', linewidth=1,
+                 marker='o', markerfacecolor='red', markersize=2)
+        legend_to_show += ("precision",)
+    if recall is not None:
+        plt.plot(x, recall, color='blue', linestyle='solid', linewidth=1,
+                 marker='o', markerfacecolor='blue', markersize=2)
+        legend_to_show += ("recall",)
+    if fscore is not None:
+        plt.plot(x, fscore, color='green', linestyle='solid', linewidth=1,
+                 marker='o', markerfacecolor='green', markersize=2)
+        legend_to_show += ("fscore",)
+    plt.gca().legend(legend_to_show, loc='best')
+    plt.xlabel('Epoch')
+    plt.ylabel('Score')
+
+    plt.title(title + " PRF Scores [" + keyword + "]")
+
+    # If the directory does not exist, create it
+    if not os.path.exists("img"):
+        os.makedirs("img")
+
+    plt.savefig("img/plot_" + title + "_" + keyword + ".png", format="png", dpi=my_dpi)
+    # plt.show()
+
+
+def draw_prf_graph(train_scores, keyword="", overall=True, instr=True, qlty=True, edge=True):
     precision = []
     recall = []
     fscore = []
@@ -180,33 +238,58 @@ def draw_prf_graph(train_scores):
                             if k == "r": edge_r.append(sc)
                             if k == "f": edge_f.append(sc)
 
-    def plot_graph(precision, recall, fscore, title, keyword):
-        my_dpi = 200
-        plt.rcParams['figure.figsize'] = 10, 5
-        plt.figure(figsize=(1280 / my_dpi, 720 / my_dpi), dpi=my_dpi)
-        x = list(range(1, ITERATIONS + 1))
-        plt.plot(x, precision, color='red', linestyle='solid', linewidth=1,
-                 marker='o', markerfacecolor='red', markersize=2)
-        plt.plot(x, recall, color='blue', linestyle='solid', linewidth=1,
-                 marker='o', markerfacecolor='blue', markersize=2)
-        plt.plot(x, fscore, color='green', linestyle='solid', linewidth=1,
-                 marker='o', markerfacecolor='green', markersize=2)
-        plt.gca().legend(('precision', 'recall', 'fscore'), loc='best')
-        plt.xlabel('Iteration')
-        plt.ylabel('Score')
-        plt.title(title)
+    if overall is True:
+        plot_graph(title=keyword, keyword="overall", precision=precision, recall=recall,
+                   fscore=fscore)
+    if qlty is True:
+        plot_graph(title=keyword, keyword="qlty", precision=qlty_p, recall=qlty_r, fscore=qlty_f)
+    if instr is True:
+        plot_graph(title=keyword, keyword="instr", precision=instr_p, recall=instr_r,
+                   fscore=instr_f)
+    if edge is True:
+        plot_graph(title=keyword, keyword="edge", precision=edge_p, recall=edge_r, fscore=edge_f)
 
-        # If the directory does not exist, create it
-        if not os.path.exists("img"):
-            os.makedirs("img")
 
-        plt.savefig("img/plot_train_prf_" + keyword + ".png", format="png", dpi=my_dpi)
-        plt.show()
+def draw_train_eval_compare_graph(train_scores, eval_scores):
+    train_fscore = []
+    eval_fscore = []
 
-    plot_graph(precision, recall, fscore, title="Training Overall PRF Scores", keyword="overall")
-    plot_graph(qlty_p, qlty_r, qlty_f, title="Training QLTY PRF Scores", keyword="qlty")
-    plot_graph(instr_p, instr_r, instr_f, title="Training INSTR PRF Scores", keyword="instr")
-    plot_graph(edge_p, edge_r, edge_f, title="Training EDGE PRF Scores", keyword="edge")
+    for i, train_score in enumerate(train_scores):
+        for key, cat in train_score.items():
+            if key == "ents_f": train_fscore.append(cat)
+
+    for i, eval_score in enumerate(eval_scores):
+        for key, cat in eval_score.items():
+            if key == "ents_f": eval_fscore.append(cat)
+
+    my_dpi = 200
+    plt.rcParams['figure.figsize'] = 10, 5
+    plt.figure(figsize=(1280 / my_dpi, 720 / my_dpi), dpi=my_dpi)
+    x = list(range(1, ITERATIONS + 1))
+
+    poly_order = 4
+
+    plt.plot(x, train_fscore, color='red', linestyle='solid', linewidth=1,
+             marker='o', markerfacecolor='red', markersize=2)
+    train_reg_line = np.polyfit(np.array(x), np.array(train_fscore), poly_order)
+    p = np.poly1d(train_reg_line)
+    plt.plot(x, p(x), color='red', linestyle='--', linewidth=0.6,
+             marker='o', markerfacecolor='red', markersize=1, label='_nolegend_')
+
+    plt.plot(x, eval_fscore, color='blue', linestyle='solid', linewidth=1,
+             marker='o', markerfacecolor='blue', markersize=2)
+    eval_reg_line = np.polyfit(np.array(x), np.array(eval_fscore), poly_order)
+    p = np.poly1d(eval_reg_line)
+    plt.plot(x, p(x), color='blue', linestyle='--', linewidth=0.6,
+             marker='o', markerfacecolor='blue', markersize=1, label='_nolegend_')
+
+    plt.gca().legend(("train", "eval"), loc='best')
+    plt.xlabel('Epoch')
+    plt.ylabel('Score')
+    plt.title("F-Score vs Epochs")
+    plt.ylim(0.00, 1.00)
+    plt.savefig("img/plot_fscore_train_vs_eval.png", format="png", dpi=my_dpi)
+    plt.show()
 
 
 def plot_training_loss_graph(losses, title):
@@ -216,7 +299,7 @@ def plot_training_loss_graph(losses, title):
     x = list(range(1, ITERATIONS + 1))
     plt.plot(x, losses, color='blue', linestyle='solid', linewidth=1,
              marker='o', markerfacecolor='green', markersize=2)
-    plt.xlabel('Iteration')
+    plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.title(title)
 
@@ -224,6 +307,6 @@ def plot_training_loss_graph(losses, title):
     if not os.path.exists("img"):
         os.makedirs("img")
 
-    plt.savefig("img/plot_train_loss" + ".png", format="png", dpi=my_dpi)
+    plt.savefig("img/plot_loss_training" + ".png", format="png", dpi=my_dpi)
     plt.show()
     save_list_to_txt(losses, "img/losses_list")

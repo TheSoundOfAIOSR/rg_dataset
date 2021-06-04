@@ -1,7 +1,5 @@
 import numpy
-import pandas as pd
 import random
-from tqdm.auto import tqdm
 import spacy
 from spacy import displacy
 from spacy.util import minibatch, compounding
@@ -17,27 +15,30 @@ numpy.random.seed(0)
 
 def load_spacy():
     nlp = spacy.load("en_core_web_sm")
-    print("spaCy version: ", spacy.__version__)
     # Getting the pipeline component
     ner = nlp.get_pipe("ner")
     return ner, nlp
 
 
 class NerModel(BaseEstimator):
-    def __init__(self, ner, nlp, model=None, n_iter=64, dropout=0.1, **model_hyper_parameters):
+    def __init__(self, ner, nlp, n_iter=64, dropout=0.1, lr=0.001, **model_hyper_parameters):
         super().__init__()
         self.ner = ner
         self.nlp = nlp
-        self.model = model
         self.n_iter = n_iter
         self.dropout = dropout
+        self.lr = lr
+
+    def clear_model(self):
+        self.nlp = spacy.load("en_core_web_sm")
+        self.ner = self.nlp.get_pipe("ner")
 
     def fit(self, train_data, eval_data):
         """ train the Named Entity Recognition model
 
         :param eval_data: evaluation data for testing after every epoch
         :param train_data: processed training data
-        :return: None
+        :return: evaluation fscore of the final epoch
         """
         # Adding labels to the NER
         for _, annotations in train_data:
@@ -46,7 +47,7 @@ class NerModel(BaseEstimator):
 
         # Disable pipeline components that are not changed
         pipe_exceptions = ["ner"]
-        unaffected_pipes = [pipe for pipe in nlp.pipe_names if pipe not in pipe_exceptions]
+        unaffected_pipes = [pipe for pipe in self.nlp.pipe_names if pipe not in pipe_exceptions]
 
         scorer = Scorer()
 
@@ -59,35 +60,35 @@ class NerModel(BaseEstimator):
         loss_list = []
 
         # Train the NER model
-        with nlp.select_pipes(enable=pipe_exceptions, disable=unaffected_pipes):
+        with self.nlp.select_pipes(enable=pipe_exceptions, disable=unaffected_pipes):
             # Create a list of Examples objects
             examples = []
 
             for text, annots in train_data:
-                examples.append(Example.from_dict(nlp.make_doc(text), annots))
+                examples.append(Example.from_dict(self.nlp.make_doc(text), annots))
 
             # Create an optimizer for the pipeline component, and set lr
-            optimizer = nlp.create_optimizer()
+            optimizer = self.nlp.create_optimizer()
 
             # optimizer = nlp.initialize()
             # NOTE: Cannot use nlp.initilaize (v3) (aka nlp.begin_training for v2) on pretrained models.
             # Use nlp.create_optimizer for training on existing model (We used pretrained en_core_web_sm).
             # ref: https://stackoverflow.com/a/66369163/6475377
 
-            optimizer.learn_rate = LEARN_RATE
+            optimizer.learn_rate = self.lr
 
             for iteration in range(ITERATIONS):
-                print("Iteration: ", iteration)
+                # print("Iteration: ", iteration)
                 # shuffling examples  before every iteration
                 random.shuffle(examples)
                 losses = {}
 
-                # optimizer = nlp.resume_training()
+                # optimizer = self.nlp.resume_training()
 
                 # batch up the examples using spaCy's minibatch
                 batches = minibatch(examples, size=compounding(4.0, 32.0, 1.001))
                 for count, batch in enumerate(batches):
-                    nlp.update(
+                    self.nlp.update(
                         batch,
                         drop=DROPOUT,  # dropout - make it harder to memorise data
                         losses=losses,
@@ -95,14 +96,14 @@ class NerModel(BaseEstimator):
                     )
 
                 loss = losses["ner"] / (count + 1)
-                print(f"Loss at epoch {iteration}: ", loss)
+                # print(f"Loss at epoch {iteration}: ", loss)
                 loss_list.append(loss)
                 # After training every iteration, calculate scores
                 example_list = []
                 for text, annot in train_data:
                     # Create a Doc of our text
                     # doc_gold_text = nlp.make_doc(text)
-                    pred_value = nlp(text)
+                    pred_value = self.nlp(text)
                     # reference = (Example.from_dict(doc_gold_text, annot))
                     gold_standard = {"entities": annot["entities"]}
 
@@ -117,12 +118,22 @@ class NerModel(BaseEstimator):
                 # Evaluate on eval_data
                 eval_scores.append(self.evaluate(test_data=eval_data))
 
-        draw_prf_graph(train_scores, keyword="train")
-        draw_prf_graph(eval_scores, keyword="eval")
-        draw_train_eval_compare_graph(train_scores, eval_scores)
+        # draw_prf_graph(train_scores, keyword="train")
+        # draw_prf_graph(eval_scores, keyword="eval")
+        # draw_train_eval_compare_graph(train_scores, eval_scores)
+        # plot_training_loss_graph(loss_list, "Losses with epochs")
 
-        plot_training_loss_graph(loss_list, "Losses with epochs")
-        self.nlp.to_disk("./saved_model")
+        # Just write the last epoch's eval fscore in txt file
+        eval_fscore = []
+        for i, eval_score in enumerate(eval_scores):
+            for key, cat in eval_score.items():
+                if key == "ents_f": eval_fscore.append(cat)
+
+        with open("img/k_cv_scores.txt", 'a') as f:
+            f.write("%s\n" % str(eval_fscore[-1]))
+
+        # self.nlp.to_disk("./saved_model")
+        return eval_fscore[-1]
 
     def evaluate(self, test_data):
         """ evaluate the trained NER model
@@ -143,7 +154,7 @@ class NerModel(BaseEstimator):
         # Get the PRF scores for test_data
         for text, annot in test_data:
             # Create a Doc of our text
-            doc_gold_text = nlp.make_doc(text)
+            doc_gold_text = self.nlp.make_doc(text)
 
             # Create gold-standard using the Doc of text
             # and original (correct) entities
@@ -196,8 +207,28 @@ class NerModel(BaseEstimator):
     #     :return:
     #     '''
 
+    def k_cross_validation(self, data, k=10):
+        print(f"{k}-fold Cross Validation")
+        random.shuffle(data)
+        num_groups = int(len(data) / k)
+        print(f"Size of each eval set: {num_groups}\n")
+        batches = minibatch(data, size=num_groups)
+
+        for count, batch in enumerate(batches):
+            # Discard the last batch if it has very few example sentences
+            if len(batch) > num_groups / 2:
+                print(f"Fold no.: {count + 1}")
+                train_data = [x for x in data if x not in batch]
+                test_data = batch
+                print(f"Train, Test :: {len(train_data)}, {len(test_data)}")
+                fscore = self.fit(train_data=train_data, eval_data=test_data)
+                print(f"fscore: {fscore}\n")
+
+            self.clear_model()
+
 
 if __name__ == '__main__':
+    print("spaCy version: ", spacy.__version__)
     ner, nlp = load_spacy()
 
     # DATA = load_cleaned_data()
@@ -211,11 +242,17 @@ if __name__ == '__main__':
     EVAL_DATA = load_list_from_pickle("EVAL_DATA")
     TEST_DATA = load_list_from_pickle("TEST_DATA")
 
-    # We're gonna use TEST (5% + 5% = 10%) for evaluation
-    TEST = EVAL_DATA + TEST_DATA
-    print("Size of total TEST data: ", len(TEST))
-    ner = NerModel(ner, nlp, n_iter=ITERATIONS, dropout=DROPOUT)
-    ner.fit(TRAIN_DATA, TEST)
+    # Create the NER model class consisting of fit and evaluate methods.
+    ner_model = NerModel(ner, nlp, n_iter=ITERATIONS, dropout=DROPOUT, lr=LEARN_RATE)
 
-    sentence = 'I really like the distortion in this guitar'
-    ner.predict(sentence)
+    # We're gonna use TEST (5% + 5% = 10%) for evaluation
+    # TEST = EVAL_DATA + TEST_DATA
+    # print("Size of total TEST data: ", len(TEST))
+    # ner_model.fit(TRAIN_DATA, TEST)
+
+    # Perform k-fold Cross Validation
+    data = TRAIN_DATA + EVAL_DATA + TEST_DATA
+    ner_model.k_cross_validation(data, k=10)
+
+    # sentence = 'I really like the distortion in this guitar'
+    # ner.predict(sentence)

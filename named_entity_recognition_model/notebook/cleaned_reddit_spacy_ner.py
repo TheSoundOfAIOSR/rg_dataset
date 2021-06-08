@@ -157,7 +157,7 @@ def train_and_test(ner, nlp, TRAIN_DATA, TEST_DATA):
 
 if __name__ == "__main__":
 
-    DATA_PATH = './../../reddit_data_preprocessing/processed_data.csv'
+    DATA_PATH = '../../reddit_data_preprocessing/data/processed_data.csv'
 
     ner, nlp = load_spacy()
     DATA = load_cleaned_data()

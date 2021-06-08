@@ -13,7 +13,7 @@ ITERATIONS = 20
 DROPOUT = 0.1
 LEARN_RATE = 0.001
 
-DATA_PATH = "./../../reddit_data_preprocessing/pf_data.csv"
+DATA_PATH = "../../reddit_data_preprocessing/data/pf_data.csv"
 
 
 def load_cleaned_data(data_path=DATA_PATH):

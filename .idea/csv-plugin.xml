@@ -10,7 +10,28 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\reddit_data_preprocessing\pattern_lists.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\reddit_data_preprocessing\pf_data.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\reddit_data_preprocessing\processed_data.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\reddit_data_preprocessing\processed_data_v1.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

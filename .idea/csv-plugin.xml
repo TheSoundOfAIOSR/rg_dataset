@@ -10,6 +10,20 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\reddit_data_preprocessing\data\curated_data.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\reddit_data_preprocessing\data\curated_pattern_lists.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\reddit_data_preprocessing\pattern_lists.csv">
           <value>
             <Attribute>

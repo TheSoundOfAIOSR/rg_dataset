@@ -66,34 +66,26 @@ def load_cleaned_data(data_path=DATA_PATH):
                     print(data['text'][index])
                     break
 
-                # TODO: Test this extra check when more cleaner data is available.
-                # There should be a blank space after every tagged word (assuming it's not the last word of
-                # the sentence), otherwise it implies this tagged word is currently a part of next word,
-                # and so this isn't what we were looking for. So keep looking ahead.
-                # Example: "guitar" exists in "guitarist", so skip this.
+                both_present = lambda: (start_index, end_index) in indices_list
+                start_present = lambda: start_index in [i[0] for i in indices_list]
+                end_present = lambda: end_index in [i[1] for i in indices_list]
+                left_blank = lambda: data['text'][index][start_index - 1] != " "
 
-                # print(data['text'][index].lower())
-                # print(start_index, end_index)
-                # print(data['text'][index].lower()[end_index])
-
-                # while True:
-                #     if len(data['text'][index].lower()) != end_index:
-                #         if data['text'][index].lower()[end_index] != " ":
-                #             start_index = find(data['text'][index].lower(), word_pair_list[0],
-                #                                start=end_index + 1).astype(numpy.int64)
-                #             start_index = start_index + 0
-                #             end_index = start_index + len(word_pair_list[0])
-                #         else:
-                #             break
-                #     else:
-                #         break
+                def right_blank():
+                    # return true if there is no blank space after the end_index,
+                    # as long as end_index is not at the end of the sentence
+                    if len(data['text'][index].lower()) != end_index:
+                        return data['text'][index][end_index] != " "
 
                 # Check if this start_index and/or end_index is already in the list:
                 # (To prevent overlapping with already tagged words)
+                flag = 0
                 while True:
-                    if ((start_index, end_index) in indices_list) or (
-                            end_index in [i[1] for i in indices_list]) or (
-                            start_index in [i[0] for i in indices_list]):
+                    if start_index == -1 or end_index == -1:
+                        flag = 1
+                        break
+                    if (both_present()) or (start_present()) or (end_present()) or (left_blank()) or (right_blank()):
+
                         start_index = find(data['text'][index].lower(), word_pair_list[0],
                                            start=end_index + 1).astype(
                             numpy.int64)
@@ -103,6 +95,10 @@ def load_cleaned_data(data_path=DATA_PATH):
                     else:
                         indices_list.append((start_index, end_index))
                         break
+
+                if flag == 1:
+                    # Don't bother checking rest of the current sentence
+                    break
 
                 annot_list.append((start_index, end_index, word_pair_list[1]))
 

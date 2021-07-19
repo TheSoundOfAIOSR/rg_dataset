@@ -96,7 +96,7 @@ class NerModel(BaseEstimator):
                     )
 
                 loss = losses["ner"] / (count + 1)
-                # print(f"Loss at epoch {iteration}: ", loss)
+                print(f"Loss at epoch {iteration}: ", loss)
                 loss_list.append(loss)
                 # After training every iteration, calculate scores
                 example_list = []
@@ -118,10 +118,12 @@ class NerModel(BaseEstimator):
                 # Evaluate on eval_data
                 eval_scores.append(self.evaluate(test_data=eval_data))
 
-        # draw_prf_graph(train_scores, keyword="train")
-        # draw_prf_graph(eval_scores, keyword="eval")
-        # draw_train_eval_compare_graph(train_scores, eval_scores)
-        # plot_training_loss_graph(loss_list, "Losses with epochs")
+            self.nlp.to_disk("./saved_model")
+
+        draw_prf_graph(train_scores, keyword="train")
+        draw_prf_graph(eval_scores, keyword="eval")
+        draw_train_eval_compare_graph(train_scores, eval_scores)
+        plot_training_loss_graph(loss_list, "Losses with epochs")
 
         # Just write the last epoch's eval fscore in txt file
         eval_fscore = []
@@ -129,10 +131,9 @@ class NerModel(BaseEstimator):
             for key, cat in eval_score.items():
                 if key == "ents_f": eval_fscore.append(cat)
 
-        with open("img/k_cv_scores.txt", 'a') as f:
-            f.write("%s\n" % str(eval_fscore[-1]))
+        # with open("img/k_cv_scores.txt", 'a') as f:
+        #     f.write("%s\n" % str(eval_fscore[-1]))
 
-        # self.nlp.to_disk("./saved_model")
         return eval_fscore[-1]
 
     def evaluate(self, test_data):
@@ -246,13 +247,14 @@ if __name__ == '__main__':
     ner_model = NerModel(ner, nlp, n_iter=ITERATIONS, dropout=DROPOUT, lr=LEARN_RATE)
 
     # We're gonna use TEST (5% + 5% = 10%) for evaluation
-    # TEST = EVAL_DATA + TEST_DATA
-    # print("Size of total TEST data: ", len(TEST))
-    # ner_model.fit(TRAIN_DATA, TEST)
+    TEST = EVAL_DATA + TEST_DATA
+    print("Size of total TRAIN data: ", len(TRAIN_DATA))
+    print("Size of total TEST (Evaluation) data: ", len(TEST))
+    ner_model.fit(TRAIN_DATA, TEST)
 
     # Perform k-fold Cross Validation
-    data = TRAIN_DATA + EVAL_DATA + TEST_DATA
-    ner_model.k_cross_validation(data, k=10)
+    # data = TRAIN_DATA + EVAL_DATA + TEST_DATA
+    # ner_model.k_cross_validation(data, k=10)
 
     # sentence = 'I really like the distortion in this guitar'
     # ner.predict(sentence)

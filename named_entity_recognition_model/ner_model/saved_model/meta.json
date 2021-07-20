@@ -124,7 +124,6 @@
     "ner":[
       "CARDINAL",
       "DATE",
-      "EDGE",
       "EVENT",
       "FAC",
       "GPE",

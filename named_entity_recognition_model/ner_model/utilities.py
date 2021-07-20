@@ -51,7 +51,7 @@ def load_cleaned_data(data_path=DATA_PATH):
         for index_ent, word_pair in enumerate(ent):
             # Split the word and its pair
             word_pair_list = word_pair.split("'")[1::2]
-            if word_pair_list[1] != "NONE":
+            if word_pair_list[1] != "NONE" and word_pair_list[1] != "EDGE":
 
                 # Remove any leading or beginning blank space
                 word_pair_list[0] = word_pair_list[0].strip()
@@ -193,7 +193,7 @@ def plot_graph(title, keyword, precision=None, recall=None, fscore=None):
     # plt.show()
 
 
-def draw_prf_graph(train_scores, keyword="", overall=True, instr=True, qlty=True, edge=True):
+def draw_prf_graph(train_scores, keyword="", overall=True, instr=True, qlty=True):
     precision = []
     recall = []
     fscore = []
@@ -205,10 +205,6 @@ def draw_prf_graph(train_scores, keyword="", overall=True, instr=True, qlty=True
     instr_p = []
     instr_r = []
     instr_f = []
-
-    edge_p = []
-    edge_r = []
-    edge_f = []
 
     # Extract P, R, F from train_score
     for i, train_score in enumerate(train_scores):
@@ -228,11 +224,6 @@ def draw_prf_graph(train_scores, keyword="", overall=True, instr=True, qlty=True
                             if k == "p": instr_p.append(sc)
                             if k == "r": instr_r.append(sc)
                             if k == "f": instr_f.append(sc)
-                    if attribute == "EDGE":
-                        for k, sc in value.items():
-                            if k == "p": edge_p.append(sc)
-                            if k == "r": edge_r.append(sc)
-                            if k == "f": edge_f.append(sc)
 
     if overall is True:
         plot_graph(title=keyword, keyword="overall", precision=precision, recall=recall,
@@ -242,8 +233,6 @@ def draw_prf_graph(train_scores, keyword="", overall=True, instr=True, qlty=True
     if instr is True:
         plot_graph(title=keyword, keyword="instr", precision=instr_p, recall=instr_r,
                    fscore=instr_f)
-    if edge is True:
-        plot_graph(title=keyword, keyword="edge", precision=edge_p, recall=edge_r, fscore=edge_f)
 
 
 def draw_train_eval_compare_graph(train_scores, eval_scores):
